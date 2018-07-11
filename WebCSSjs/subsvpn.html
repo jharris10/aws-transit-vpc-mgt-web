@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>AWS Transit VPC</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link rel="icon" href="images/Palo Alto Networks Inc_a.png">
+</head>
+
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+
+                <div class="jumbotron">
+                    <h1 class="display-3">VPC Tunnel Management</h1>
+                    <p class="lead">Manage VPC Tunnel Creation</p>
+                    <hr class="my-2">
+                    <p>Manages the creation of VPN tunnels between Paloaltonetworks firewalls and AWS VGWs in remote VPCs</p>
+
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-2">
+                <h3>Step 1 - Enter VPC Details</h3>
+                <form id="myform">
+
+                    <div class="form-group">
+                        <label for="VpcId">VPC</label>
+                        <input type="text" class="form-control" id="VpcId" name="VpcId" placeholder="vpc-xxxxxx">
+                        <small id="VpcId" class="form-text text-muted">Enter the VpcID of the VPC that will join the transit VPC.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="VpcCidr">Network</label>
+                        <input type="text" class="form-control" id="VpcCidr" name="VpcCidr" placeholder="10.0.0.0/8">
+                        <small id="VpcCidr" class="form-text text-muted">Enter the VpcID Cidr Block of the VPC (Must be Unique).</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="Region">AWS Region</label>
+                        <input type="text" class="form-control" id="Region" name="Region" placeholder="eu-west-1">
+                        <small id="Region" class="form-text text-muted">Enter the Region that constains the VPC</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="exampleFormControlSelect1">Perform Dry Run to check for available resources first</label>
+                        <select class="form-control" name="dryrun" id="exampleFormControlSelect1">
+                            <option>Yes</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <button id="subsbutton" class="btn btn-primary" style="display: block;">Submit</button>
+                    <div>
+                    </div>
+
+                </form>
+
+            </div>
+            <div class="col-md-5">
+                <h3>Step 2 - Subscribing VPC Connection</h3>
+                <div id="SubsOutputTxtId" name="SubscriberOutput" style="visibility: hidden;">
+                    <p>The following IP address pool and AS numbers have been reserved</p>
+                    <p>Click Commit to prceed with VGW Creation</p>
+                </div>
+                <div name="results" id="SubsResultsId">
+                    <!-- For server results -->
+                </div>
+                <div>
+                    <button id="transitsubmit" class="btn btn-primary" style="display: none;">Submit</button>
+                </div>
+            </div>
+            <div class="col-md-5">
+                    <h3>Step 3 - Transit VPC Connection</h3>
+                    <div id="TransitOutputTxtId" name="TransitOutput" style="visibility: hidden;">
+                        <p>Result of VPN Configuration</p>
+                        <p></p>
+                    </div>
+                    <div name="TransitResults" id="TransitResultsId">
+                        <!-- For server results -->
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/json2html/1.2.0/json2html.min.js"></script>
+    <script src="js/scripts.js"></script>
+    <script src="allocate.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $("#subsbutton").click(function (event) {
+                event.preventDefault();
+                var formdata = $("form").serialize();
+                //console.log(formdata);
+                subscriberurl = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
+                $.ajax({
+                    type: 'GET',
+                    dataType: 'json',
+                    async: true,
+                    cache: true,
+                    statusCode: {
+                        502: function () {
+                            alert('Got unknown error check Cloudwatch logs!');
+                        }
+                    },
+                    data: formdata,
+                    url: subscriberurl,
+                    success: function (response) {
+                        //alert((response));  //get the url used in the ajax query
+                        console.log(response);
+                        if (document.getElementById("myform").elements["dryrun"].value === 'No' ){
+                            console.log(document.getElementById("myform").elements["dryrun"].value);
+                            if(response["Result"]==="Success"){
+                                transitparams = $.param(response);
+                                document.getElementById("subsbutton").style.display = 'none'
+                                document.getElementById("transitsubmit").style.display = 'block';
+                            }
+                        }
+                       
+                        var keys = Object.keys(response);
+
+                        var txt = ""
+                        txt += "<table class=\"table\"><tbody>";
+                        for (j in response) {
+                            ;
+                            //console.log(j);
+                            //console.log(response[j]); 
+
+                            txt += "<tr><td>" + j + "</td><td>" + response[j] + "</td></tr>";
+                        }
+                        txt += "</tbody></table>";
+                        document.getElementById("SubsOutputTxtId").style.visibility = 'visible';
+
+                        console.log(txt);
+
+
+                        // FINALLY ADD THE NEWLY CREATED TABLE WITH JSON DATA TO A CONTAINER.
+                        var divContainer = document.getElementById("SubsResultsId");
+                        divContainer.innerHTML = txt;
+                        divContainer.style.visibility = 'visible';
+                
+                    }
+                });
+            });
+        });
+        var transitparams = ''
+        var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn'
+        $("#transitsubmit").click(function (event) {
+            event.preventDefault();
+                transiturl = transiturlbase + '?' + transitparams;
+                $.ajax({
+                    type: 'GET',
+                    dataType: 'json',
+                    async: true,
+                    cache: true,
+                    data: transitparams,
+                    url: transiturl,
+                    success: function (response) {
+                        alert((response['Result']==="Success"));  //get the url used in the ajax query
+                        console.log(response);
+                    if(response){
+                        params = $.param(response);
+                        document.getElementById("subsbutton").style.display = 'none'
+                            }
+                        var keys = Object.keys(response);
+                        var txt = ""
+                        txt += "<table class=\"table\"><tbody>";
+                        for (j in response) {
+                            ;
+                            //console.log(j);
+                            //console.log(response[j]); 
+
+                            txt += "<tr><td>" + j + "</td><td>" + response[j] + "</td></tr>";
+                        }
+                        txt += "</tbody></table>";
+                        document.getElementById("TransitOutputTxtId").style.visibility = 'visible';
+
+                        console.log(txt);
+
+
+                        // FINALLY ADD THE NEWLY CREATED TABLE WITH JSON DATA TO A CONTAINER.
+                        var divContainer = document.getElementById("TransitResultsId");
+                        divContainer.innerHTML = txt;
+                        divContainer.style.visibility = 'visible';
+                
+                    }
+                });
+
+        });
+    
+
+    </script>
+</body>
+
+</html>
+<!DOCTYPE html>
