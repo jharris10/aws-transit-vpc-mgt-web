@@ -66,7 +66,9 @@
                 <h3>Step 2 - Subscribing VPC Connection</h3>
                 <div id="SubsOutputTxtId" name="SubscriberOutput" style="visibility: hidden;">
                     <p>The following IP address pool and AS numbers have been reserved</p>
-                    <p>Click Commit to prceed with VGW Creation</p>
+                </div>
+                <div id="SubsOutputTxtId1" name="SubscriberOutput" style="visibility: hidden;">
+                    <p>Click Commit to prceed with VGW Creation</p>  
                 </div>
                 <div name="results" id="SubsResultsId">
                     <!-- For server results -->
@@ -118,6 +120,7 @@
                         console.log(response);
                         if (document.getElementById("myform").elements["dryrun"].value === 'No' ){
                             console.log(document.getElementById("myform").elements["dryrun"].value);
+                            document.getElementById("SubsOutputTxtId1").style.visibility = 'visible';
                             if(response["Result"]==="Success"){
                                 transitparams = $.param(response);
                                 document.getElementById("subsbutton").style.display = 'none'
@@ -138,7 +141,7 @@
                         }
                         txt += "</tbody></table>";
                         document.getElementById("SubsOutputTxtId").style.visibility = 'visible';
-
+                        
                         console.log(txt);
 
 
