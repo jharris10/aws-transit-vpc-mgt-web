@@ -60,9 +60,9 @@ def publishToSns(snsTopicArn, message, roleArn=None):
                                    aws_access_key_id=assumedrole['Credentials']['AccessKeyId'],
                                    aws_secret_access_key=assumedrole['Credentials']['SecretAccessKey'],
                                    aws_session_token=assumedrole['Credentials']['SessionToken'])
-            snsConn.publish(TopicArn=snsTopicArn, Message=str(message))
+            snsConn.publish(TopicArn=snsTopicArn, Message=json.dumps(message))
             return True
-        snsConnection.publish(TopicArn=snsTopicArn, Message=str(message))
+        snsConnection.publish(TopicArn=snsTopicArn, Message=json.dumps(message))
         return True
     except Exception as e:
         logger.error("Error in publishToSns(), Error: {}".format(str(e)))
@@ -325,6 +325,7 @@ def getAvailableVgwAsn(tableName, data):
     Calls updateVgwAnsTable() function to update the 'InUse' to YES and VpcId and VpcCidr
     """
     VpcId = data['queryStringParameters']['VpcId']
+    logger.info('Got VpcId {}'.format(VpcId))
     try:
         table = dynamodb.Table(tableName)
         # Check whether the VPC is assigned with VgwAsn number
@@ -528,6 +529,7 @@ def lambda_handler(event, context):
     global dryrun
     dryrun = False
     logger.info("Got Event: {}".format(event))
+    logger.info("Got SNS Topict: {}".format(apicreatevgwSnsArn))
 
     if event['queryStringParameters']['dryrun'] == 'Yes':  # Set True for 'Yes' False for "No'
         dryrun = True
@@ -572,19 +574,40 @@ def lambda_handler(event, context):
                                 updateVpcTable(transitConfig['TransitVpcTable'], event, paGroup['PaGroupName'])
 
 
-                                data = {
+                                data10 = {
+                                    "Result": 'Success',
+                                    "VpcId": event['queryStringParameters']['VpcId'],
+                                    "VpcCidr": event['queryStringParameters']['VpcCidr'],
+                                    "PaGroupName": paGroup['PaGroupName'],
+                                    "vgwAsn": str(vgwAsnNumber),
+                                    "N1Eip": paGroup['N1Eip'],
+                                    "N2Eip": paGroup['N2Eip'],
+                                    "N1Asn": paGroup['N1Asn'],
+                                    "N2Asn": paGroup['N2Asn'],
+                                    "N1T1": bgpIpPool['N1T1'],
+                                    "N1T2": bgpIpPool['N1T2'],
+                                    "N2T1": bgpIpPool['N2T1'],
+                                    "N2T2": bgpIpPool['N2T2'],
+                                    "IpSegment": bgpIpPool['IpSegment'],
+                                    "Region": region
+                                }
+                                data11 = {
                                     'Result': 'Success',
                                     'VpcId': event['queryStringParameters']['VpcId'],
                                     'VpcCidr': event['queryStringParameters']['VpcCidr'],
-                                    'paGroup': paGroup,
+                                    'paGroup': 'paGroup',
                                     'VgwAsn': str(vgwAsnNumber),
                                     'BGP Pool': bgpIpPool,
                                     'Region': 'Region',
                                 }
-                                logger.info('Created data object {}'.format(data))
-                                publishToSns(apicreatevgwSnsArn, data, event['TransitAssumeRoleArn'])
+                                logger.info('Created data object {}'.format(data10))
+                                publishToSns(apicreatevgwSnsArn, data10, subscriberAssumeRoleArn)
+                                apioutput = response(data11, 200)
                                 logger.info(
                                     "Updated VpcTable: {} with : {}".format(transitConfig['TransitVpcTable'], event))
+                                logger.info("Requesting VGW creation with parameters {}, hence proceeding  ".format(apioutput))
+                                return apioutput
+
 
                             # return transitTaskHandler
                             if dryrun:
