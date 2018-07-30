@@ -103,9 +103,10 @@
         $(document).ready(function () {
 
             //Helper functions VpcId and CidrBlock
+            //Onload call the API gateway /getvpcs to get the available VPC's in the region
+            //Returns a json object with VpcID and CidrBlock for each VPC. 
+            //Populate list box for VpcId and automatically set Network
 
-                //let dropdown = $('#locality-dropdown');
-            //let dropdown = document.getElementById("VpcId")
             var dropdown = $('#VpcId');
 
             dropdown.empty();
@@ -145,8 +146,9 @@
                     }
                 }
             });
-
-
+            //
+            // Submit Form data to API to create Subscriber connections
+            //
             $("#subsbutton").click(function (event) {
                 event.preventDefault();
                 var formdata = $("form").serialize();
@@ -200,8 +202,9 @@
 
                         console.log(txt);
 
-
-                        // FINALLY ADD THE NEWLY CREATED TABLE WITH JSON DATA TO A CONTAINER.
+                        //
+                        // If response is received enable submit button to config Transit Account VPN connections
+                        //
                         var divContainer = document.getElementById("SubsResultsId");
                         divContainer.innerHTML = txt;
                         divContainer.style.visibility = 'visible';
@@ -210,6 +213,10 @@
                 });
             });
         });
+        //
+        // Submit Form data to API to create Transit connection
+        // Submit Button enabled when we get feedback that we are creating the subscriber VGW
+        //
         var transitparams = ''
         var transiturlbase = 'https://xxxxxx.execute-api.eu-west-1.amazonaws.com/Production/transitvpn'
         $("#transitsubmit").click(function (event) {
