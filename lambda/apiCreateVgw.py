@@ -17,12 +17,27 @@ Input:
     'VpcCidr'                   : 'v.w.x.y/z',
     'Region'                    : 'AWS_Region'
 }
+
+Output:
+{
+    'VpcId' :'VpcId' , 
+    'Region':'Region',
+    'VgwAsn':'VgwAsn', 
+    'PaGroupName':'PaGroupName',
+    'N1Eip':"N1Eip", 
+    'N2Eip':'N2Eip', 
+    'N1Asn':'N1Asn', 
+    'N2Asn':'N2Asn',
+    'bgpIpPool':'bgpIpPool',
+    'vgwAsnNumber':'vgwAsnNumber'
+}
 '''
 
 subscriberConfigTable = os.environ['subscriberConfigTable']
 subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
+apicreatevgwSnsArn = os.environ['apiCreateVgwSnsArn']
 dynamodb = boto3.resource('dynamodb', region_name=region)
 dryrun = False
 transitConfig = {}
@@ -33,7 +48,25 @@ subscriberConfig = {}
 # From commonLambdaFunction
 #
 
-
+def publishToSns(snsTopicArn, message, roleArn=None):
+    """Publish message to SNS Topic
+    """
+    try:
+        snsConnection = boto3.client('sns', region_name=snsTopicArn.split(':')[3])
+        if roleArn:
+            stsConnection = boto3.client('sts')
+            assumedrole = stsConnection.assume_role(RoleArn=roleArn, RoleSessionName="Sample")
+            snsConn = boto3.client('sns', region_name=snsTopicArn.split(':')[3],
+                                   aws_access_key_id=assumedrole['Credentials']['AccessKeyId'],
+                                   aws_secret_access_key=assumedrole['Credentials']['SecretAccessKey'],
+                                   aws_session_token=assumedrole['Credentials']['SessionToken'])
+            snsConn.publish(TopicArn=snsTopicArn, Message=json.dumps(message))
+            return True
+        snsConnection.publish(TopicArn=snsTopicArn, Message=json.dumps(message))
+        return True
+    except Exception as e:
+        logger.error("Error in publishToSns(), Error: {}".format(str(e)))
+        # return False
 
 def fetchFromTransitConfigTable(transitConfigTable=None):
     """Get the data from TransitConfig table and returns it as dictionary
@@ -292,6 +325,7 @@ def getAvailableVgwAsn(tableName, data):
     Calls updateVgwAnsTable() function to update the 'InUse' to YES and VpcId and VpcCidr
     """
     VpcId = data['queryStringParameters']['VpcId']
+    logger.info('Got VpcId {}'.format(VpcId))
     try:
         table = dynamodb.Table(tableName)
         # Check whether the VPC is assigned with VgwAsn number
@@ -489,145 +523,157 @@ def response(message, status_code):
             'Access-Control-Allow-Origin': '*'
         },
     }
-#VpcId, Region, VgwAsn, PaGroupName, paGroup, bgpIpPool[],vgwAsnNumber
 
 
 def lambda_handler(event, context):
-
+    global dryrun
+    dryrun = False
     logger.info("Got Event: {}".format(event))
-    paGroup = event['pagroup']
+    logger.info("Got SNS Topict: {}".format(apicreatevgwSnsArn))
 
+    if event['queryStringParameters']['dryrun'] == 'Yes':  # Set True for 'Yes' False for "No'
+        dryrun = True
     try:
-        logger.info('event object is {}'.format(event))
-        subscriberConfig = fetchFromSubscriberConfigTable(subscriberConfigTable)
-        logger.info("Got subscriberConfig from table {}".format(subscriberConfigTable))
-        if subscriberConfig:
-            vgwId = False
-            vgwevent = isVgwAttachedToVpc(event['VpcId'],
-                                         event['Region'])
-            logger.info("VGW event : {}".format(vgwevent))
-            if vgwevent: vgwId = vgwevent['VpnGatewayId']
-            if not vgwId:
-                # Create VGW and attach it to VPC
-                vgwId = createVgwAttachToVpc(event['VpcId'], int(event['VgwAsn']),
-                                             event['Region'],
-                                             event['PaGroupName'])
-                logger.info("VGW - {} is created and attached to VPC - {}".format(vgwId, event['VpcId']))
+        transitConfig = fetchFromTransitConfigTable(transitConfigTable)
+        paloAltoGroupCapacity = transitConfig['PaGroupMaxVpc']
+        if transitConfig:
+            subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
+
+            # subscriberAssumeRoleArn=event['SubscriberAssumeRoleArn']
+
+            # TransitTaskHandler data event
+            transitTaskHandler = {'Action': 'TransitTaskHandler'}
+
+            # Check VPC CIDR Conflicts
+            result = checkVpcCidrConflicts(event['queryStringParameters']['VpcCidr'], transitConfig['TransitVpcTable'])
+            if result:
+                logger.debug(
+                    "No VPC Cidr conflict. Ok to get PAGroup Info")
+                # Get Available PA-Group
+                paGroup = getAvailablePaGroup(transitConfig['TransitPaGroupInfo'], int(transitConfig['PaGroupMaxVpc']))
+                if paGroup:
+                    logger.info(
+                        "Got PaGroup Details {} , hence proceeding to get available VGW ASN Number ".format(paGroup))
+                    # Get Available VgwAsn Number
+                    vgwAsnNumber = getAvailableVgwAsn(transitConfig['TransitVgwAsn'], event)
+                    logger.info(
+                        "Got vgwAsnNumber {}  ".format(vgwAsnNumber))
+                    if vgwAsnNumber:
+                        logger.info(
+                            "Got vgwAsnNumber={}, hence proceeding to get available BgpIpPool Cidr ranges".format(
+                                vgwAsnNumber))
+                        # Get Available Tunnel IP Pool Ranges
+                        bgpIpPool = getAvailableBgpTunnelIpPool(transitConfig['TransitBgpTunnelIpPool'],
+                                                                event['queryStringParameters']['VpcId'],
+                                                                paGroup['PaGroupName'])
+                        if bgpIpPool:
+                            logger.info("Got bgpIpPool={}, hence proceeding  ".format(bgpIpPool))
+
+                            # Update VpcTable with VpcId, VpcCidr and SubsriberSnsArn
+                            if not dryrun:
+                                updateVpcTable(transitConfig['TransitVpcTable'], event, paGroup['PaGroupName'])
+
+
+                                data10 = {
+                                    "Result": 'Success',
+                                    "VpcId": event['queryStringParameters']['VpcId'],
+                                    "VpcCidr": event['queryStringParameters']['VpcCidr'],
+                                    "PaGroupName": paGroup['PaGroupName'],
+                                    "vgwAsn": str(vgwAsnNumber),
+                                    "N1Eip": paGroup['N1Eip'],
+                                    "N2Eip": paGroup['N2Eip'],
+                                    "N1Asn": paGroup['N1Asn'],
+                                    "N2Asn": paGroup['N2Asn'],
+                                    "N1T1": bgpIpPool['N1T1'],
+                                    "N1T2": bgpIpPool['N1T2'],
+                                    "N2T1": bgpIpPool['N2T1'],
+                                    "N2T2": bgpIpPool['N2T2'],
+                                    "IpSegment": bgpIpPool['IpSegment'],
+                                    "Region": region
+                                }
+                                data11 = {
+                                    'Result': 'Success',
+                                    'VpcId': event['queryStringParameters']['VpcId'],
+                                    'VpcCidr': event['queryStringParameters']['VpcCidr'],
+                                    'paGroup': 'paGroup',
+                                    'VgwAsn': str(vgwAsnNumber),
+                                    'BGP Pool': bgpIpPool,
+                                    'Region': 'Region',
+                                }
+                                logger.info('Created data object {}'.format(data10))
+                                publishToSns(apicreatevgwSnsArn, data10, subscriberAssumeRoleArn)
+                                apioutput = response(data11, 200)
+                                logger.info(
+                                    "Updated VpcTable: {} with : {}".format(transitConfig['TransitVpcTable'], event))
+                                logger.info("Requesting VGW creation with parameters {}, hence proceeding  ".format(apioutput))
+                                return apioutput
+
+
+                            # return transitTaskHandler
+                            if dryrun:
+                                bgpIpPoolStr = json.dumps(bgpIpPool)
+                                logger.info('Creating data object')
+                                data = {
+                                    'Result': 'Success',
+                                    'VpcId': event['queryStringParameters']['VpcId'],
+                                    'VpcCidr': event['queryStringParameters']['VpcCidr'],
+                                    'PaGroupName': paGroup['PaGroupName'],
+                                    'VgwAsn': str(vgwAsnNumber),
+                                    'BGP Pool': bgpIpPoolStr
+                                }
+                                logger.info('Created data object {} in dryrun'.format(data))
+                                apioutput = response(data, 200)
+                                logger.info("Sending response={}, hence proceeding  ".format(apioutput))
+                                return apioutput
+
+
+                        else:
+                            logger.error("BgpTunnelIpPools are exausted, hence exiting from setup")
+                            data1 = {
+                                'Result': 'Failed',
+                                'Reason': 'BgpTunnelIpPools are exausted, hence exiting from setup'
+                            }
+                            apioutput = response(data1, 200)
+                            logger.info("Sending response={}, hence proceeding  ".format(apioutput))
+                            return apioutput
+                            sys.exit(0)
+                    else:
+                        logger.error("VgwAsns are exausted, hence exiting from setup")
+                        data2 = {
+                            'Result': 'Failed',
+                            'Reason': 'VgwAsns are exausted, hence exiting from setup'
+                        }
+                        apioutput = response(data2, 200)
+                        logger.info("Sending response={}, hence proceeding  ".format(apioutput))
+                        return apioutput
+                        sys.exit(0)
+                else:
+                    # Launch CFT to spin up new PA-Group
+                    # Update the PaGroupInfo table with PaGroup, N1Asn, N2Asn, InUse, N1Mgmt, N2Mgmt, N1Eip, N2Eip, VpcCount
+                    data3 = {
+                        'Result': 'Failed',
+                        'Reason': 'No Firewalls found'
+                    }
+                    apioutput = response(data3, 200)
+                    logger.info("Sending response={}, hence proceeding  ".format(apioutput))
+                    return apioutput
+                    sys.exit(0)
+
             else:
-                logger.info(
-                    "Using existing Vgw: {} for VPC: {} ".format(vgwId, event['VpcId']))
-            logger.info("Checking whether CGWs are already created or not")
-            cgwIds = checkCgw(event['Region'], paGroup['N1Eip'], paGroup['N2Eip'])
-            if not cgwIds:
-                logger.info("CGWs are not created before, hence creating them now")
-                # Create CGW1
-                cgw1Tag = paGroup['PaGroupName'] + '-N1'
-                cgwNode1Id = createCgw(paGroup['N1Eip'], str(paGroup['N1Asn']),
-                                       event['Region'], cgw1Tag)
-                logger.info(
-                    "CGW - {} is created for VPC - {}".format(cgwNode1Id, event['VpcId']))
-                # Create CGW2
-                cgw2Tag = paGroup['PaGroupName'] + '-N2'
-                cgwNode2Id = createCgw(paGroup['N2Eip'], str(paGroup['N2Asn']),
-                                       event['Region'], cgw2Tag)
-                logger.info(
-                    "CGW - {} is created for VPC - {}".format(cgwNode1Id, event['VpcId']))
-            else:
-                logger.info("CGWs are already created, CgwNode1Id: {}, CgwNode2Id: {}".format(cgwIds[0], cgwIds[1]))
-                cgwNode1Id = cgwIds[0]
-                cgwNode2Id = cgwIds[1]
-
-            # VPN Connection
-            print(paGroup['PaGroupName'])
-            vpn1Tag = event['VpcId'] + '-' + paGroup['PaGroupName'] + '-N1'
-            vpn2Tag = event['VpcId'] + '-' + paGroup['PaGroupName'] + '-N2'
-            # Create VPN1 connection with Node1
-            #
-            if vgwId: vpnId1 = createVpnConnectionUploadToS3(event['Region'], vgwId,
-                                                             cgwNode1Id, event['bgpIpPool']['N1T1'],
-                                                             event['bgpIpPool']['N1T2'], vpn1Tag,
-                                                             transitConfig['TransitVpnBucketName'],
-                                                             transitConfig['TransitAssumeRoleArn'])
-            logger.info("VPN1 - {} is created for VPC - {} with PA-Group: {}".format(vpnId1,
-                                                                                     event[
-                                                                                         'VpcId'],
-                                                                                     paGroup['PaGroupName']))
-            # Crete VPN2 connection with Node2
-            if vgwId: vpnId2 = createVpnConnectionUploadToS3(event['Region'], vgwId,
-                                                             cgwNode2Id, event['bgpIpPool']['N2T1'],
-                                                             event['bgpIpPool']['N2T2'], vpn2Tag,
-                                                             transitConfig['TransitVpnBucketName'],
-                                                             transitConfig['TransitAssumeRoleArn'])
-            logger.info("VPN2 - {} is created for VPC - {} with PA-Group: {}".format(vpnId2,
-                                                                                     event[
-                                                                                         'VpcId'],
-                                                                                     paGroup['PaGroupName']))
-
-            #
-            # End of VPC setup
-            #
-            #
-            # Forming an output to send to The Browser
-
-            # Update SubcriberDynamoDB with VPN1-ID, VPN1-ID, VGW, CGW1, CGW2 and PA-Group-Name
-            if vpnId1 and vpnId2:
-                event = {
-                    'Result': 'Success',
-                    'VpcId': event['VpcId'],
-                    'VpcCidr': event['VpcCidr'],
-                    'Region': event['Region'],
-                    'VgwId': vgwId,
-                    'PaGroupName': paGroup['PaGroupName'],
-                    'CgwN1': cgwNode1Id,
-                    'CgwN2': cgwNode2Id,
-                    'VpnN1': vpnId1,
-                    'VpnN2': vpnId2,
-                    'VgwAsn': str(event['vgwAsnNumber']),
-                    'IpSegment': event['bgpIpPool']['IpSegment']
+                logger.info("Conflicts with VPC CIDR, NewVpcId={}".format(
+                    event['queryStringParameters']['VpcId']))
+                data4 = {
+                    'Result': 'Failed',
+                    'Reason': 'Conflicts with Existing VPC CIDR Block'
                 }
-                putItemSubscriberLocalDb(subscriberConfig['SubscriberLocalDb'], event)
+                apioutput = response(data4, 200)
+                logger.info("Sending response={}, hence proceeding  ".format(apioutput))
+                return apioutput
 
-            # #Update VpcVPnTable with VpnId, VpcId, PaGroup, PaGroupNode
-            if vpnId1:
-                event = {
-                    'VpnId': vpnId1,
-                    'VpcId': event['VpcId'],
-                    'PaGroupName': paGroup['PaGroupName'],
-                    'PaGroupNode': paGroup['N1Eip'],
-                    'Region': event['Region']
-                }
-                updateVpcVpnTable(subscriberConfig['SubscriberVpcVpnTable'], event)
-            if vpnId2:
-                event = {
-                    'VpnId': vpnId2,
-                    'VpcId': event['VpcId'],
-                    'PaGroupName': paGroup['PaGroupName'],
-                    'PaGroupNode': paGroup['N2Eip'],
-                    'Region': event['Region']
-                }
-                updateVpcVpnTable(subscriberConfig['SubscriberVpcVpnTable'], event)
-            # # Publish message to Transit VPN
         else:
-            logger.error("No event received from SubscriberConfig Table, Error")
-    except Exception as e:
-        logger.error("Error from subscriberVpn Configuration, Error: {}".format(str(e)))
-        if vgwId: deleteVgw(vgwId, event['VpcId'],
-                            event['Region'])
-        #
-        # Create cleanup function for eventbase functions putItemSubscriberLocalDb, updateVpcVpnTable, createCgw
-        #
-        event = {
-            'Result': 'Failed',
-            'Reason': 'Error from subscriberVpn Configuration, Error: {}'.format(str(e)),
-            'Action': 'Deleted the VGW but check dynamodb tables'
-        }
-        apioutput = response(event, 200)
-        logger.info("Sending response={}, hence proceeding  ".format(apioutput))
-        return apioutput
+            logger.error("Not Received any data from TransitConfig table")
 
-        if vgwId: deleteVgw(vgwId, event['VpcId'],
-                            event['Region'])
-        logger.info(
-            "Publishing message to Transit SNS with subject SubscriberVpnConfigurationFailed, because of Error: {}".format(
-                str(e)))
-        # publishToSns(event['TransitSnsArn'], data, event['TransitAssumeRoleArn'])
+
+
+    except Exception as e:
+        logger.error("Error: {}".format(str(e)))

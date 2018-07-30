@@ -1,19 +1,31 @@
-import boto3
-from boto3.dynamodb.conditions import Key, Attr
+import json
 import logging
 import os
-import json
 import sys
+
+import boto3
+from boto3.dynamodb.conditions import Attr
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 '''
-Input:
-{
-    'VpcId'                     : 'vpc-xxxxxxx',
-    'VpcCidr'                   : 'v.w.x.y/z',
-    'Region'                    : 'AWS_Region'
+Input {
+    "Result": 'Success',
+    "VpcId": event['queryStringParameters']['VpcId'],
+    "VpcCidr": event['queryStringParameters']['VpcCidr'],
+    "PaGroupName": paGroup['PaGroupName'],
+    "vgwAsn": str(vgwAsnNumber),
+    "N1Eip": paGroup['N1Eip'],
+    "N2Eip": paGroup['N2Eip'],
+    "N1Asn": paGroup['N1Asn'],
+    "N2Asn": paGroup['N2Asn'],
+    "N1T1": bgpIpPool['N1T1'],
+    "N1T2": bgpIpPool['N1T2'],
+    "N2T1": bgpIpPool['N2T1'],
+    "N2T2": bgpIpPool['N2T2'],
+    "IpSegment": bgpIpPool['IpSegment'],
+    "Region": region
 }
 '''
 
@@ -619,4 +631,3 @@ def lambda_handler(event1, context):
         #
         # Create cleanup function for eventbase functions putItemSubscriberLocalDb, updateVpcVpnTable, createCgw
         #
-
