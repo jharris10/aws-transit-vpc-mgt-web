@@ -25,39 +25,46 @@ Input {
     "N2T1": bgpIpPool['N2T1'],
     "N2T2": bgpIpPool['N2T2'],
     "IpSegment": bgpIpPool['IpSegment'],
+    "TransitVpnBucketName": transitConfig['TransitVpnBucketName'],
+    "TransitAssumeRoleArn": transitConfig['TransitAssumeRoleArn'],
     "Region": region
 }
 '''
 
 subscriberConfigTable = os.environ['subscriberConfigTable']
-subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
-transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
+
+# Check why these are needed
+subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
+
+# Not Required if we send via SNS topic
+# transitConfigTable = os.environ['transitConfigTable']
+# transitConfig = {}
+subscriberConfig = {}
+
 dynamodb = boto3.resource('dynamodb', region_name=region)
 dryrun = False
-transitConfig = {}
-subscriberConfig = {}
 
 
 #
 # From commonLambdaFunction
 #
 
-
-def fetchFromTransitConfigTable(transitConfigTable=None):
-    """Get the data from TransitConfig table and returns it as dictionary
-    """
-    try:
-        dynamodb = boto3.resource('dynamodb')
-        table = dynamodb.Table(transitConfigTable)
-        response = table.scan()
-        for item in response['Items']:
-            transitConfig[item['Property']] = item['Value']
-        return transitConfig
-        logger.info("Got trasnitConfig {}".format(transitConfig))
-    except Exception as e:
-        logger.info("Fetching From Config table failed, Error: {}".format(str(e)))
-        return False
+# Not required as sent via SNS
+# def fetchFromTransitConfigTable(transitConfigTable=None):
+#     """Get the data from TransitConfig table and returns it as dictionary
+#     """
+#     try:
+#         dynamodb = boto3.resource('dynamodb')
+#         table = dynamodb.Table(transitConfigTable)
+#         response = table.scan()
+#         for item in response['Items']:
+#             transitConfig[item['Property']] = item['Value']
+#         return transitConfig
+#         logger.info("Got trasnitConfig {}".format(transitConfig))
+#     except Exception as e:
+#         logger.info("Fetching From Config table failed, Error: {}".format(str(e)))
+#         return False
 
 
 def fetchFromSubscriberConfigTable(subscriberConfigTable=None):
@@ -503,14 +510,38 @@ def response(message, status_code):
 
 # VpcId, Region, vgwAsn, PaGroupName, paGroup, bgpIpPool[],vgwAsnNumber
 
+def uploadFileToS3(fileName, bucketName, updates, assumeRoleArn=False):
+    """Uploads status file to S3 bucket
+    """
+    try:
+        s3Connection = boto3.resource('s3')
+        if assumeRoleArn:
+            stsConnection = boto3.client('sts')
+            assumedrole = stsConnection.assume_role(RoleArn=assumeRoleArn, RoleSessionName="Sample")
+            s3 = boto3.resource('s3', aws_access_key_id=assumedrole['Credentials']['AccessKeyId'],
+                                aws_secret_access_key=assumedrole['Credentials']['SecretAccessKey'],
+                                aws_session_token=assumedrole['Credentials']['SessionToken'])
+            s3.Object(bucketName, fileName).put(Body=updates)
+            return True
+        result = s3Connection.Object(bucketName, fileName).put(Body=json.dumps(updates))
+        print ("result is {}".format(result))
+        return True
+    except Exception as e:
+        print("Error uploading file to S3 Bucket, Error : %s" % str(e))
+        return False
+
 
 def lambda_handler(event1, context):
-    logger.info('raw sns event object is {}'.format(event1))
     # event = json.loads(event1['Records'][0]['Sns']['Message'])
+    # Need fileName, bucketName,
+    #
     rawmessage = event1['Records'][0]['Sns']['Message']
     event = json.loads(rawmessage)
     logger.info('event object is {}'.format(event))
-    transitConfig = fetchFromTransitConfigTable(transitConfigTable)
+    messagefileName = event['messagefileName']
+
+    # Info send via SNS
+    # transitConfig = fetchFromTransitConfigTable(transitConfigTable)
 
     try:
         logger.info('event object is {}'.format(event))
@@ -518,10 +549,10 @@ def lambda_handler(event1, context):
         logger.info("Got subscriberConfig from table {}".format(subscriberConfig))
         if subscriberConfig:
             vgwId = False
-            vgwevent = isVgwAttachedToVpc(event['VpcId'],
-                                          event['Region'])
-            logger.info("VGW event : {}".format(vgwevent))
-            if vgwevent: vgwId = vgwevent['VpnGatewayId']
+            vgwData = isVgwAttachedToVpc(event['VpcId'],
+                                         event['Region'])
+            logger.info("VGW event : {}".format(vgwData))
+            if vgwData: vgwId = vgwData['VpnGatewayId']
             if not vgwId:
                 # Create VGW and attach it to VPC
                 vgwId = createVgwAttachToVpc(event['VpcId'], int(event['vgwAsn']),
@@ -553,7 +584,7 @@ def lambda_handler(event1, context):
                 cgwNode2Id = cgwIds[1]
 
             # VPN Connection
-            print(event['PaGroupName'])
+            logger.info('Creating vpnXTag with PagroupName {}'.format(event['PaGroupName']))
             vpn1Tag = event['VpcId'] + '-' + event['PaGroupName'] + '-N1'
             vpn2Tag = event['VpcId'] + '-' + event['PaGroupName'] + '-N2'
             # Create VPN1 connection with Node1
@@ -561,8 +592,8 @@ def lambda_handler(event1, context):
             if vgwId: vpnId1 = createVpnConnectionUploadToS3(event['Region'], vgwId,
                                                              cgwNode1Id, event['N1T1'],
                                                              event['N1T2'], vpn1Tag,
-                                                             transitConfig['TransitVpnBucketName'],
-                                                             transitConfig['TransitAssumeRoleArn'])
+                                                             event['TransitVpnBucketName'],
+                                                             event['TransitAssumeRoleArn'])
             logger.info("VPN1 - {} is created for VPC - {} with PA-Group: {}".format(vpnId1,
                                                                                      event[
                                                                                          'VpcId'],
@@ -571,8 +602,8 @@ def lambda_handler(event1, context):
             if vgwId: vpnId2 = createVpnConnectionUploadToS3(event['Region'], vgwId,
                                                              cgwNode2Id, event['N2T1'],
                                                              event['N2T2'], vpn2Tag,
-                                                             transitConfig['TransitVpnBucketName'],
-                                                             transitConfig['TransitAssumeRoleArn'])
+                                                             event['TransitVpnBucketName'],
+                                                             event['TransitAssumeRoleArn'])
             logger.info("VPN2 - {} is created for VPC - {} with PA-Group: {}".format(vpnId2,
                                                                                      event[
                                                                                          'VpcId'],
@@ -586,7 +617,7 @@ def lambda_handler(event1, context):
 
             # Update SubcriberDynamoDB with VPN1-ID, VPN1-ID, VGW, CGW1, CGW2 and PA-Group-Name
             if vpnId1 and vpnId2:
-                update = {
+                data = {
                     'Result': 'Success',
                     'VpcId': event['VpcId'],
                     'VpcCidr': event['VpcCidr'],
@@ -600,9 +631,35 @@ def lambda_handler(event1, context):
                     'vgwAsn': str(event['vgwAsn']),
                     'IpSegment': event['IpSegment']
                 }
-                putItemSubscriberLocalDb(subscriberConfig['SubscriberLocalDb'], update)
+                # if vgwData:data['VgwAsn'] = str(vgwData['AmazonSideAsn'])
 
-            # #Update VpcVPnTable with VpnId, VpcId, PaGroup, PaGroupNode
+                # Publish message to S3 bucket
+                # publishToSns(event['TransitSnsArn'], update, event['TransitAssumeRoleArn'])
+                uploadFileToS3(event['messagefileName'], event['TransitVpnBucketName'], json.dumps(data),
+                               event['TransitAssumeRoleArn'])
+
+                #
+                #
+                # filecontents = downloadFileFromS3(event['messagefileName'], event['TransitVpnBucketName'])
+                # logger.info('Downloaded from S3 object and Result is {} '.format(filecontents['Result']))
+                #
+
+            if vpnId1 and vpnId2:
+                data = {
+                    'VpcId': event['VpcId'],
+                    'VpcCidr': event['VpcCidr'],
+                    'Region': event['Region'],
+                    'VgwId': vgwId,
+                    'PaGroupName': event['PaGroupName'],
+                    'CgwN1': cgwNode1Id,
+                    'CgwN2': cgwNode2Id,
+                    'VpnN1': vpnId1,
+                    'VpnN2': vpnId2
+                }
+                putItemSubscriberLocalDb(subscriberConfig['SubscriberLocalDb'], data)
+                logger.info('Updated table {} with {} '.format(subscriberConfig['SubscriberLocalDb'], data))
+
+            # #Update {} with VpnId, VpcId, PaGroup, PaGroupNode
             if vpnId1:
                 update = {
                     'VpnId': vpnId1,
@@ -612,6 +669,7 @@ def lambda_handler(event1, context):
                     'Region': event['Region']
                 }
                 updateVpcVpnTable(subscriberConfig['SubscriberVpcVpnTable'], update)
+                logger.info('Updated table {} with {} '.format(subscriberConfig['SubscriberVpcVpnTable'], update))
             if vpnId2:
                 update = {
                     'VpnId': vpnId2,
@@ -621,6 +679,7 @@ def lambda_handler(event1, context):
                     'Region': event['Region']
                 }
                 updateVpcVpnTable(subscriberConfig['SubscriberVpcVpnTable'], update)
+                logger.info('Updated table {} with {} '.format(subscriberConfig['SubscriberVpcVpnTable'], update))
             # # Publish message to Transit VPN
         else:
             logger.error("No event received from SubscriberConfig Table, Error")
@@ -628,6 +687,10 @@ def lambda_handler(event1, context):
         logger.error("Error from subscriberVpn Configuration, Error: {}".format(str(e)))
         if vgwId: deleteVgw(vgwId, event['VpcId'],
                             event['Region'])
+
         #
         # Create cleanup function for eventbase functions putItemSubscriberLocalDb, updateVpcVpnTable, createCgw
         #
+        # TODO
+        # Add clean up for TransitVPC tables configured in apiCreateVgw.py
+        # updateVpcTable(transitConfig['TransitVpcTable'], event, paGroup['PaGroupName'])
