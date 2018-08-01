@@ -126,7 +126,7 @@
                         alert('Got unknown error check Cloudwatch logs!');
                     }
                 },
-                url: "https://xxxxxx.execute-api.eu-west-1.amazonaws.com/Production/getvpcs",
+                url: "https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/getvpcs",
                 success: function (response) {
                     vpcdata = JSON.parse(response.body);
                     $.each(vpcdata, function (key, entry) {
@@ -154,7 +154,7 @@
                 var formdata = $("form").serialize();
                 formdata = formdata + '&VpcId=' + $("#VpcId option:selected").val();
                 //console.log(formdata);
-                subscriberurl = 'https://xxxxxx.execute-api.eu-west-1.amazonaws.com/Production/';
+                subscriberurl = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
                 $.ajax({
                     type: 'GET',
                     dataType: 'json',
@@ -218,10 +218,10 @@
         // Submit Button enabled when we get feedback that we are creating the subscriber VGW
         //
         var transitparams = ''
-        var transiturlbase = 'https://xxxxxx.execute-api.eu-west-1.amazonaws.com/Production/transitvpn'
+        var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn'
         $("#transitsubmit").click(function (event) {
             event.preventDefault();
-            transiturl = transiturlbase + '?' + transitparams;
+            transiturl = transiturlbase + '?' + transitparams + '&messagefileName=testfilemessage.json';
             $.ajax({
                 type: 'GET',
                 dataType: 'json',
