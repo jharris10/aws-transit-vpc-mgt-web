@@ -5,8 +5,6 @@ import os
 import json
 import sys
 
-
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -37,7 +35,11 @@ subscriberConfigTable = os.environ['subscriberConfigTable']
 subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
+#
+# THIS COULD BE PASSED IN VIA URL FOR MULTI ACCOUNT
 apicreatevgwSnsArn = os.environ['apiCreateVgwSnsArn']
+#
+#
 dynamodb = boto3.resource('dynamodb', region_name=region)
 dryrun = False
 transitConfig = {}
@@ -67,6 +69,7 @@ def publishToSns(snsTopicArn, message, roleArn=None):
     except Exception as e:
         logger.error("Error in publishToSns(), Error: {}".format(str(e)))
         # return False
+
 
 def fetchFromTransitConfigTable(transitConfigTable=None):
     """Get the data from TransitConfig table and returns it as dictionary
@@ -120,8 +123,6 @@ def uploadObjectToS3(vpnConfiguration, bucketName, assumeRoleArn=None):
         return False
 
 
-
-
 def deleteVgw(vgwId, vpcId, awsRegion):
     logger.info('Called deleteVgw(vgwId, vpcId, awsRegion) {} {} {}'.format(vgwId, vpcId, awsRegion))
     """Detache and Deletes the VGW from VPC
@@ -138,6 +139,7 @@ def deleteVgw(vgwId, vpcId, awsRegion):
     except Exception as e:
         logger.error("Error in deleteVgw(), Error: {}".format(str(e)))
         pass
+
 
 def createVpnConnectionUploadToS3(region, vgwId, cgwId, tunnelOneCidr, tunnelTwoCidr, tag, bucketName,
                                   assumeRoleArn=None):
@@ -188,6 +190,7 @@ def createCgw(cgwIp, cgwAsn, region, tag):
     except Exception as e:
         logger.error("Error in createCgw(), Error: {}".format(str(e)))
         return False
+
 
 def checkCgw(awsRegion, n1Eip, n2Eip):
     logger.info('Called checkCgw(awsRegion, n1Eip, n2Eip) {} {} {}'.format(awsRegion, n1Eip, n2Eip))
@@ -267,7 +270,11 @@ def getAvailableBgpTunnelIpPool(tableName, vpcId, paGroupName):
         response = table.scan(FilterExpression=Attr('Available').eq('YES'))['Items']
         if response:
             # Update BgpTunnelIpPool table Attribute "Available"="NO"
-            if not dryrun: updateBgpTunnelIpPool(response[0]['IpSegment'], table, vpcId, paGroupName)
+            if not dryrun:
+                updateBgpTunnelIpPool(response[0]['IpSegment'], table, vpcId, paGroupName)
+                logger.info(
+                    "Updated table {} with {} {} {}".format(table, response[0]['IpSegment'], vpcId, paGroupName))
+
             return response[0]
         else:
             return False
@@ -300,7 +307,9 @@ def getAvailablePaGroup(tableName, maxCount):
             logger.info("Returing the Pa Group which has nearest capacity, PA-Group Name: {}".format(
                 paGroupToReturn['PaGroupName']))
             # Update PaGroupInfo Table InUse="Yes" and increment VpcCount+1
-            if not dryrun: updatePaGroup(paGroupToReturn['PaGroupName'], table)
+            if not dryrun:
+                updatePaGroup(paGroupToReturn['PaGroupName'], table)
+                logger.info("Updated table {} with {}".format(table, paGroupToReturn['PaGroupName']))
             return paGroupToReturn
         else:
             response = table.scan(FilterExpression=Attr('InUse').eq('NO'))['Items']
@@ -308,11 +317,12 @@ def getAvailablePaGroup(tableName, maxCount):
                 for group in response:
                     if 'N1Eip' in group:
                         # Update PaGroupInfo Table InUse="Yes" and increment VpcCount+1
-                        logger.info("Returing the PA-Group Name: {}".format(group['PaGroupName']))
-                        updatePaGroup(group['PaGroupName'], table)
+                        if not dryrun:
+                            logger.info("Returing the PA-Group Name: {}".format(group['PaGroupName']))
+                            updatePaGroup(group['PaGroupName'], table)
                         return group
-                else:
-                    return False
+                    else:
+                        return False
             else:
                 return False
     except Exception as e:
@@ -337,7 +347,9 @@ def getAvailableVgwAsn(tableName, data):
         response = table.scan(FilterExpression=Attr('InUse').eq('NO'))['Items']
         if response:
             # Update VgwAsn Table with InUse=YES, VpcId and VpcCidr values
-            if not dryrun: result = updateVgwAsnTable(response[0]['VgwAsn'], data, table)
+            if not dryrun:
+                result = updateVgwAsnTable(response[0]['VgwAsn'], data, table)
+                logger.info("Updated table {} with VgwAsn{} {}".format(table, response[0]['VgwAsn'], data))
             return response[0]['VgwAsn']
         else:
             logger.error("VgwAsn numbers are exhausted, so Pleas add some more ASN numbers to VgwAsn Table")
@@ -382,15 +394,16 @@ def updateVgwAsnTable(id, data, tableConn):
     """
     try:
         # Update VgwAsn Table with InUse=YES, VpcId and VpcCidr values
-        if not dryrun: tableConn.update_item(Key={'VgwAsn': id},
-                                             AttributeUpdates={'InUse': {'Value': 'YES', 'Action': 'PUT'},
-                                                               'VpcId': {
-                                                                   'Value': data['queryStringParameters']['VpcId'],
-                                                                   'Action': 'PUT'}, 'VpcCidr': {
-                                                     'Value': data['queryStringParameters']['VpcCidr'],
-                                                     'Action': 'PUT'}})
-        logger.info("Successfully Updated VgwAsnTable attributes InUse=YES and VpcId: {}, VpcCidr:{}".format(
-            data['queryStringParameters']['VpcId'], data['queryStringParameters']['VpcCidr']))
+        if not dryrun:
+            tableConn.update_item(Key={'VgwAsn': id},
+                                  AttributeUpdates={'InUse': {'Value': 'YES', 'Action': 'PUT'},
+                                                    'VpcId': {
+                                                        'Value': data['queryStringParameters']['VpcId'],
+                                                        'Action': 'PUT'}, 'VpcCidr': {
+                                          'Value': data['queryStringParameters']['VpcCidr'],
+                                          'Action': 'PUT'}})
+            logger.info("Successfully Updated VgwAsnTable attributes InUse=YES and VpcId: {}, VpcCidr:{}".format(
+                data['queryStringParameters']['VpcId'], data['queryStringParameters']['VpcCidr']))
     except Exception as e:
         logger.error("Error from updateVgwAsnTable, {}".format(str(e)))
 
@@ -414,7 +427,7 @@ def updateVpcTable(tableName, data, paGroupName):
         logger.error("Updating Transit VpcTable with item: {}".format(item))
         if not dryrun: response = table.put_item(Item=item)
     except Exception as e:
-        logger.error("Updating Transit VpcTalbe is Failed, Error: {}".format(str(e)))
+        logger.error("Updating Transit VpcTable is Failed, Error: {}".format(str(e)))
 
 
 #
@@ -513,6 +526,43 @@ def updateVpcVpnTable(tableName, item):
         logger.error("Updating VpcVpnTable failed, Error: {}".format(str(e)))
 
 
+def uploadFileToS3(fileName, bucketName, updates, assumeRoleArn=False):
+    """Uploads status file to S3 bucket
+    """
+    try:
+        s3Connection = boto3.resource('s3')
+        if assumeRoleArn:
+            stsConnection = boto3.client('sts')
+            assumedrole = stsConnection.assume_role(RoleArn=assumeRoleArn, RoleSessionName="Sample")
+            s3 = boto3.resource('s3', aws_access_key_id=assumedrole['Credentials']['AccessKeyId'],
+                                aws_secret_access_key=assumedrole['Credentials']['SecretAccessKey'],
+                                aws_session_token=assumedrole['Credentials']['SessionToken'])
+            s3.Object(bucketName, fileName).put(Body=updates)
+            return True
+        result = s3Connection.Object(bucketName, fileName).put(Body=json.dumps(updates))
+        print ("result is {}".format(result))
+        return True
+    except Exception as e:
+        print("Error uploading file to S3 Bucket, Error : %s" % str(e))
+        return False
+
+
+def downloadFileFromS3(file, bucket):
+    # Downloads an object status file from S3 bucket
+    # Returns Json list object that is updated
+    #
+    try:
+        s3_client = boto3.client('s3')
+        s3_response_object = s3_client.get_object(Bucket=bucket, Key=file)
+        object_content = s3_response_object['Body'].read()
+        object = json.loads(object_content)
+        logger.info('Reading status file with  {}'.format(file))
+        return object
+
+    except Exception as e:
+        logger.error("Error uploading file to S3 Bucket, Error : %s" % str(e))
+
+
 def response(message, status_code):
     logger.info('Called function response with {} {}'.format(message, status_code))
     return {
@@ -529,7 +579,6 @@ def lambda_handler(event, context):
     global dryrun
     dryrun = False
     logger.info("Got Event: {}".format(event))
-    logger.info("Got SNS Topict: {}".format(apicreatevgwSnsArn))
 
     if event['queryStringParameters']['dryrun'] == 'Yes':  # Set True for 'Yes' False for "No'
         dryrun = True
@@ -557,7 +606,7 @@ def lambda_handler(event, context):
                     # Get Available VgwAsn Number
                     vgwAsnNumber = getAvailableVgwAsn(transitConfig['TransitVgwAsn'], event)
                     logger.info(
-                        "Got vgwAsnNumber {}  ".format(vgwAsnNumber))
+                        "Got vgwAsnNumber {}  from {}".format(vgwAsnNumber, transitConfig['TransitVgwAsn']))
                     if vgwAsnNumber:
                         logger.info(
                             "Got vgwAsnNumber={}, hence proceeding to get available BgpIpPool Cidr ranges".format(
@@ -568,12 +617,11 @@ def lambda_handler(event, context):
                                                                 paGroup['PaGroupName'])
                         if bgpIpPool:
                             logger.info("Got bgpIpPool={}, hence proceeding  ".format(bgpIpPool))
-
+                            messagefileName = 'testfilemessage.json'
                             # Update VpcTable with VpcId, VpcCidr and SubsriberSnsArn
                             if not dryrun:
                                 updateVpcTable(transitConfig['TransitVpcTable'], event, paGroup['PaGroupName'])
-
-
+                                logger.info('Updated {} table with {}'.format(transitConfig['TransitVpcTable'], event))
                                 data10 = {
                                     "Result": 'Success',
                                     "VpcId": event['queryStringParameters']['VpcId'],
@@ -589,39 +637,55 @@ def lambda_handler(event, context):
                                     "N2T1": bgpIpPool['N2T1'],
                                     "N2T2": bgpIpPool['N2T2'],
                                     "IpSegment": bgpIpPool['IpSegment'],
-                                    "Region": region
+                                    "TransitVpnBucketName": transitConfig['TransitVpnBucketName'],
+                                    "TransitAssumeRoleArn": transitConfig['TransitAssumeRoleArn'],
+                                    "Region": region,
+                                    "messagefileName": messagefileName
+
                                 }
                                 data11 = {
-                                    'Result': 'Success',
-                                    'VpcId': event['queryStringParameters']['VpcId'],
-                                    'VpcCidr': event['queryStringParameters']['VpcCidr'],
-                                    'paGroup': 'paGroup',
-                                    'VgwAsn': str(vgwAsnNumber),
-                                    'BGP Pool': bgpIpPool,
-                                    'Region': 'Region',
+                                    "Result": "Success",
+                                    "VpcId": event['queryStringParameters']['VpcId'],
+                                    "VpcCidr": event['queryStringParameters']['VpcCidr'],
+                                    "PaGroupName": paGroup['PaGroupName'],
+                                    "VgwAsn": str(vgwAsnNumber),
+                                    "BGP Pool": bgpIpPool,
+                                    "Region": 'Region',
                                 }
                                 logger.info('Created data object {}'.format(data10))
                                 publishToSns(apicreatevgwSnsArn, data10, subscriberAssumeRoleArn)
                                 apioutput = response(data11, 200)
                                 logger.info(
-                                    "Updated VpcTable: {} with : {}".format(transitConfig['TransitVpcTable'], event))
-                                logger.info("Requesting VGW creation with parameters {}, hence proceeding  ".format(apioutput))
+                                    "Requesting VGW creation with parameters {}, hence proceeding  ".format(apioutput))
                                 return apioutput
-
 
                             # return transitTaskHandler
                             if dryrun:
                                 bgpIpPoolStr = json.dumps(bgpIpPool)
                                 logger.info('Creating data object')
                                 data = {
-                                    'Result': 'Success',
-                                    'VpcId': event['queryStringParameters']['VpcId'],
-                                    'VpcCidr': event['queryStringParameters']['VpcCidr'],
-                                    'PaGroupName': paGroup['PaGroupName'],
-                                    'VgwAsn': str(vgwAsnNumber),
-                                    'BGP Pool': bgpIpPoolStr
+                                    "Result": "Success",
+                                    "VpcId": event['queryStringParameters']['VpcId'],
+                                    "VpcCidr": event['queryStringParameters']['VpcCidr'],
+                                    "PaGroupName": paGroup['PaGroupName'],
+                                    "VgwAsn": str(vgwAsnNumber),
+                                    "BGP Pool": bgpIpPoolStr,
+                                    "messagefileName": messagefileName
                                 }
                                 logger.info('Created data object {} in dryrun'.format(data))
+                                #
+                                #
+                                uploadFileToS3(messagefileName, transitConfig['TransitVpnBucketName'], json.dumps(data),
+                                               transitConfig['TransitAssumeRoleArn'])
+
+                                #
+                                #
+                                filecontents = downloadFileFromS3(messagefileName,
+                                                                  transitConfig['TransitVpnBucketName'])
+                                logger.info(
+                                    'Downloaded from S3 object and Result is {} '.format(filecontents['Result']))
+                                #
+
                                 apioutput = response(data, 200)
                                 logger.info("Sending response={}, hence proceeding  ".format(apioutput))
                                 return apioutput
@@ -630,7 +694,7 @@ def lambda_handler(event, context):
                         else:
                             logger.error("BgpTunnelIpPools are exausted, hence exiting from setup")
                             data1 = {
-                                'Result': 'Failed',
+                                "Result": "Failed",
                                 'Reason': 'BgpTunnelIpPools are exausted, hence exiting from setup'
                             }
                             apioutput = response(data1, 200)
@@ -672,6 +736,7 @@ def lambda_handler(event, context):
 
         else:
             logger.error("Not Received any data from TransitConfig table")
+
 
 
 
