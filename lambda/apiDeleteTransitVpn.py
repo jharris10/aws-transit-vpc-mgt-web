@@ -61,6 +61,7 @@ def updatePaGroupInfoTable(tableName,paGroupName):
         dynamodb = boto3.resource('dynamodb', region_name=region)
         table = dynamodb.Table(tableName)
         response = table.query(KeyConditionExpression=Key('PaGroupName').eq(paGroupName))['Items']
+        logger.info("Got response {} to table query for table {}".format(response, tableName))
         if response:
             if response[0]['VpcCount']>0:
                 table.update_item(Key={'PaGroupName':paGroupName},AttributeUpdates={'VpcCount':{'Value':-1,'Action':'ADD'}})
@@ -75,6 +76,7 @@ def updateBgpTunnleIpPool(tableName,vpcId):
         dynamodb = boto3.resource('dynamodb', region_name=region)
         table = dynamodb.Table(tableName)
         response = table.scan(FilterExpression=Attr('VpcId').eq(vpcId))
+        logger.info("Got response {} to table scan for table {}".format(response, tableName))
         LastEvaluatedKey = True
         while LastEvaluatedKey:
             for item in response['Items']:
@@ -131,6 +133,9 @@ def response(message, status_code):
     }
 
 def lambda_handler(event,context):
+    
+    if 'queryStringParameters' in event.keys():
+        event = event['queryStringParameters']
     logger.info("Got Event: {}".format(event))
     try:
         config = fetchFromTransitConfigTable(transitConfigTable)
@@ -138,21 +143,26 @@ def lambda_handler(event,context):
         if config:
             #deleteVpnConfigurationFromPaGroup() this will be from pan_vpn_generic file
             vpcResult = getItemFromVpcTable(config['TransitVpcTable'],event['VpcId'])
-            logger.info("Got vpcResult: {}".format(vpcResult))
+            logger.info("Got vpcResult from {} table {}".format(vpcResult,config['TransitVpcTable']))
             if vpcResult:
                 paGroupResult = getItemFromPaGroupInfo(config['TransitPaGroupInfo'],vpcResult['PaGroupName'])
-                logger.info('Got paGroupResult {}'.format(paGroupResult))
+                logger.info('Got paGroupResult {} from {}'.format(paGroupResult,config['TransitPaGroupInfo']))
                 if paGroupResult:
                     api_key = pan_vpn_generic.getApiKey(paGroupResult['N1Mgmt'], config['UserName'],config['Password'])
                     logger.info('Got apikey ')
                     #Deleting the VPN connections with the PA Group
+                    logger.info('Calling paGroupDeleteVpn with {} {} {}'.format(paGroupResult, vpcResult['Node1VpnId'],vpcResult['Node2VpnId']))
                     pan_vpn_generic.paGroupDeleteVpn(api_key, paGroupResult, vpcResult['Node1VpnId'],vpcResult['Node2VpnId'])
                     logger.info("Successfully deleted VPN connections VPN1: {}, VPN2: {} with PaGroup: {} ".format(vpcResult['Node1VpnId'],vpcResult['Node2VpnId'],paGroupResult['PaGroupName']))
-                    #Delete Item from TransitVpcTable with
-                    deleteItemFromVpcTable(config['TransitVpcTable'],event['VpcId'])
+                    #Delete Item from TransitVpcTable with 
+                    res = deleteItemFromVpcTable(config['TransitVpcTable'],event['VpcId'])
+                    logger.info('Deleted Item from table {}'.format(config['TransitVpcTable']))
                     updatePaGroupInfoTable(config['TransitPaGroupInfo'],vpcResult['PaGroupName'])
+    
                     updateBgpTunnleIpPool(config['TransitBgpTunnelIpPool'], event['VpcId'])
-                    if 'VgwAsn' in event: updateVgwAsn(config['TransitVgwAsn'],event['VgwAsn'])
+                    if 'VgwAsn' in event: 
+                        updateVgwAsn(config['TransitVgwAsn'],event['VgwAsn'])
+                        logger.info('Deleted VgwAsn from table {}'.format(config['TransitVgwAsn']))
                     data1 = {
                         'Result': 'Success',
                         'Reason': 'Updated deleted the VPN and updated the tables' + config['TransitVpcTable']
