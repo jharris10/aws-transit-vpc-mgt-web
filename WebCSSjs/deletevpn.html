@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>AWS Transit VPC</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <!--link href="css/style.css" rel="stylesheet"-->
+    <!--link rel="icon" href="images/Palo Alto Networks Inc_a.png"-->
+</head>
+
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">PaloAltoNetworks</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+            aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="./index.html">Home
+                        <span class="sr-only">(current)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="./subsvpndev.html">VPN Creation</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="./deletevpn.html">VPN Deletion</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="https://www.paloaltonetworks.com/resources/datasheets/transit-vpc-with-vm-series">Paloaltonetworks</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true"
+                        aria-expanded="false">
+                        Documentation
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <a class="dropdown-item" href="#">Lambda Functions</a>
+                        <a class="dropdown-item" href="#">Web Pages</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="https://github.com/jharris10/aws-transit-vpc-mgt-web">Source Code</a>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">Disabled</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+
+                <div class="jumbotron">
+                    <h1 class="display-3">VPC Tunnel Deletion</h1>
+                    <p class="lead">Manage VPC Tunnels</p>
+                    <hr class="my-2">
+                    <p>Manages the deletion of VPN tunnels between Paloaltonetworks firewalls and AWS VGWs in remote VPCs</p>
+
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <h3>Step 1 - Enter VPC Details</h3>
+                <h3>The VPC VPN Tunnel to the Firewalls will be deleted</h3>
+                <form id="myform">
+                    <div class="form-group">
+                        <label for="Region">AWS Region</label>
+                        <input type="text" class="form-control" id="Region" name="Region" value="eu-west-1">
+                        <small id="Region" class="form-text text-muted">Enter the Region that constains the VPC</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="VgwAsn">VgwAsn</label>
+                        <input type="text" class="form-control" id="VgwAsn" name="VgwAsn" value="eu-west-1">
+                        <small id="Region" class="form-text text-muted">VPC VGW ASN Number</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="VpcId">Select VpcId</label>
+                        <select class="form-control" id="VpcId">
+                            <option>1</option>
+                            <option>2</option>
+                            <option>3</option>
+                            <option>4</option>
+                            <option>5</option>
+                        </select>
+                    </div>
+                    <button id="subsbutton" class="btn btn-primary" style="display: block;">Delete Subscriber VPN</button>
+                    <div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="col-md-4">
+                <h3 class="subscriberVpcOutput" style="display:none;">Step 2 - Subscribing VPC Connection</h3>
+                <div id="SubsOutputTxtSuccess" name="SubscriberOutput" style="display:none;">
+                    <p>Successfully deleted the Transit Account VPN configuration</p>
+
+                    <div>
+                        <button id="transitsubmit" class="btn btn-primary">Delete Transit VPN</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h3 class="transitVpcOutput" style="display:none;">Step 3 - Transit VPC Connection</h3>
+                <div id="TransitOutputTxtId" name="TransitOutput" style="visibility: hidden;">
+                    <p>Result of VPN Configuration</p>
+                </div>
+                <div name="TransitResults" id="TransitResultsId">
+                    <!-- For server results -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/json2html/1.2.0/json2html.min.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+
+            //Helper functions VpcId and CidrBlock
+            //Onload call the API gateway /getvpcs to get the available VPC's in the region
+            //Returns a json object with VpcID and CidrBlock for each VPC. 
+            //Populate list box for VpcId and automatically set Network
+
+            var dropdown = $('#VpcId');
+            dropdown.empty();
+
+            dropdown.append('<option selected="true" disabled>Select VPC</option>');
+            dropdown.prop('selectedIndex', 0);
+
+            // Populate dropdown with list of VpcId
+
+            $.ajax({
+                type: 'GET',
+                dataType: 'json',
+                async: true,
+                cache: true,
+                statusCode: {
+                    502: function () {
+                        alert('Got unknown error check Cloudwatch logs!');
+                    }
+                },
+                url: "https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/getvpcs",
+                success: function (response) {
+                    vpcdata = JSON.parse(response.body);
+                    $.each(vpcdata, function (key, entry) {
+                        dropdown.append($('<option></option>').attr('value', entry.VpcId).text(
+                            entry.VpcId));
+                    })
+                }
+            });
+
+            $('#VpcId').change(function () {
+                selectedVpcId = $("#VpcId option:selected").val();
+                for (var i in vpcdata) {
+                    if (vpcdata[i].VpcId == selectedVpcId) {
+                        $('#VpcCidr').val(vpcdata[i].VpcCidr)
+                        // Add an element to the dictionary
+                        break; // If you want to break out of the loop once you've found a match
+                    }
+                }
+            });
+
+
+
+            //
+            //poll function
+            //
+            var transitparams = '';
+            var pollinterval;
+            var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
+            var subsurlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
+
+            //
+            // poll function queries lambda function for vgw Status
+            // Once attached enable submit button
+            //
+
+
+            //
+            // Submit Form data to API to create Subscriber connection
+            // Submit Button enabled when we get feedback that we are creating the subscriber VGW
+            //
+
+            $("#subsbutton").click(function (event) {
+                event.preventDefault();
+                var formdata = $("form").serialize();
+                formdata = formdata + '&VpcId=' + $("#VpcId option:selected").val();
+                //console.log(formdata);
+                transitparams = formdata;
+                subscriberurl =
+                    subsurlbase + 'deletesubsvpn';
+                $.ajax({
+                    type: 'GET',
+                    dataType: 'json',
+                    async: true,
+                    cache: true,
+                    statusCode: {
+                        502: function () {
+                            alert('Got unknown error check Cloudwatch logs!');
+                        }
+                    },
+                    data: formdata,
+                    url: subscriberurl,
+                    success: function (response) {
+                        //poll();
+                        //alert((response));  //get the url used in the ajax query
+                        //console.log(response);
+                        $('.subscriberVpcOutput').show();
+                        if (response["Result"] === "Success") {
+                            $('#SubsOutputTxtSuccess').show();
+                            $('#transitsubmit').show();
+                            $('#subsbutton').hide();
+                        }
+                    },
+                });
+            });
+
+            //
+            // Submit Form data to API to create Transit connection
+            // Submit Button enabled when we get feedback that we are creating the subscriber VGW
+            //
+
+            $("#transitsubmit").click(function (event) {
+                event.preventDefault();
+                transiturl = transiturlbase + 'deletetransvpn';
+                $.ajax({
+                    type: 'GET',
+                    dataType: 'json',
+                    async: true,
+                    cache: true,
+                    data: transitparams,
+                    url: transiturl,
+                    success: function (response) {
+                        alert((response['Result'] === "Success")); //get the url used in the ajax query
+                        //console.log(response);
+                        $('.transitVpcOutput').show();
+                        document.getElementById("TransitOutputTxtId").style.visibility =
+                            'visible';
+                        if (response) {
+                            params = $.param(response);
+                            document.getElementById("subsbutton").style.display = 'none'
+                        }
+                        //Write response as a table
+                        var keys = Object.keys(response);
+                        var txt = ""
+                        txt += "<table class=\"table\"><tbody>";
+                        for (j in response) {;
+                            //console.log(j);
+                            //console.log(response[j]); 
+
+                            txt += "<tr><td>" + j + "</td><td>" + response[j] +
+                                "</td></tr>";
+                        }
+                        txt += "</tbody></table>";
+
+
+                        console.log(txt);
+
+
+                        // FINALLY ADD THE NEWLY CREATED TABLE WITH JSON DATA TO A CONTAINER.
+                        var divContainer = document.getElementById("TransitResultsId");
+                        divContainer.innerHTML = txt;
+                        divContainer.style.visibility = 'visible';
+
+                    }
+                });
+
+            });
+        });
+    </script>
+</body>
+
+</html>
+<!DOCTYPE html>
