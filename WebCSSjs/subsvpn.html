@@ -15,6 +15,47 @@
 
 
 <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">PaloAltoNetworks</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+            aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="./index.html">Home
+                        <span class="sr-only">(current)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="./subsvpndev.html">VPN Creation</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="./deletevpn.html">VPN Deletion</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="https://www.paloaltonetworks.com/resources/datasheets/transit-vpc-with-vm-series">Paloaltonetworks</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true"
+                        aria-expanded="false">
+                        Documentation
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <a class="dropdown-item" href="#">Lambda Functions</a>
+                        <a class="dropdown-item" href="#">Web Pages</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="https://github.com/jharris10/aws-transit-vpc-mgt-web">Source Code</a>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">Disabled</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
@@ -38,15 +79,15 @@
                         <small id="Region" class="form-text text-muted">Enter the Region that constains the VPC</small>
                     </div>
                     <div class="form-group">
-                            <label for="VpcId">Select VpcId</label>
-                            <select class="form-control" id="VpcId">
-                                <option>1</option>
-                                <option>2</option>
-                                <option>3</option>
-                                <option>4</option>
-                                <option>5</option>
-                            </select>
-                        </div>
+                        <label for="VpcId">Select VpcId</label>
+                        <select class="form-control" id="VpcId">
+                            <option>1</option>
+                            <option>2</option>
+                            <option>3</option>
+                            <option>4</option>
+                            <option>5</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="VpcCidr">Network</label>
                         <input type="text" class="form-control" id="VpcCidr" name="VpcCidr" placeholder="10.0.0.0/8">
@@ -68,25 +109,47 @@
 
             </div>
             <div class="col-md-5">
-                <h3>Step 2 - Subscribing VPC Connection</h3>
-                <div id="SubsOutputTxtId" name="SubscriberOutput" style="visibility: hidden;">
-                    <p>The following IP address pool and AS numbers have been reserved</p>
+                <h3 class="subscriberVpcOutput" style="display:none;">Step 2 - Subscribing VPC Connection</h3>
+                <div id="SubsOutputTxtSuccess" name="SubscriberOutput" style="display:none;">
+                    <p>Successfully requested the creation of the VGW in the VPC</p>
+                    <p>VGW AS Number is
+                        <span class=VgwAsntext></span>
+                    </p>
+                    <p>Assigned Firewall Group
+                        <span class=paGrouptext></span>
+                    </p>
+                    <p>Configuration file '
+                        <span class=configFiletext></span>' uploaded to S3 bucket</p>
+                    <div id="vgwStatustxt" style="display: none;">
+                        <p>Checking VGW status</p>
+                    </div>
+                </div>
+                <div id="SubsOutputTxtFailed" name="SubscriberOutput" style="display:none;">
+                    <p>Cannot create VGW in this VPC</p>
+                    <p>Failure Reason
+                        <span class=failedReasonText></span>
+                    </p>
+                    <p>Check the VPC Configuration</p>
                 </div>
                 <div id="SubsOutputTxtId1" name="SubscriberOutput" style="visibility: hidden;">
                     <p>Click Commit to prceed with VGW Creation</p>
                 </div>
-                <div name="results" id="SubsResultsId">
-                    <!-- For server results -->
+                <div name="vgwStatusId" id="vgwStatusId" style="display:none;">
+                    <p>VGW Status:
+                        <span class="VgwStatus"></span>
+                    </p>
+                    <p>VgwID:
+                        <span class="vgwID"></span>
+                    </p>
                 </div>
                 <div>
                     <button id="transitsubmit" class="btn btn-primary" style="display: none;">Submit</button>
                 </div>
             </div>
             <div class="col-md-5">
-                <h3>Step 3 - Transit VPC Connection</h3>
+                <h3 class="transitVpcOutput" style="display:none;">Step 3 - Transit VPC Connection</h3>
                 <div id="TransitOutputTxtId" name="TransitOutput" style="visibility: hidden;">
                     <p>Result of VPN Configuration</p>
-                    <p></p>
                 </div>
                 <div name="TransitResults" id="TransitResultsId">
                     <!-- For server results -->
@@ -100,6 +163,10 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/json2html/1.2.0/json2html.min.js"></script>
     <script type="text/javascript">
+        var transitparams = '';
+        var pollinterval;
+        var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
+
         $(document).ready(function () {
 
             //Helper functions VpcId and CidrBlock
@@ -108,7 +175,6 @@
             //Populate list box for VpcId and automatically set Network
 
             var dropdown = $('#VpcId');
-
             dropdown.empty();
 
             dropdown.append('<option selected="true" disabled>Select VPC</option>');
@@ -146,9 +212,48 @@
                     }
                 }
             });
+
             //
-            // Submit Form data to API to create Subscriber connections
+            //poll function
             //
+            var transitparams = '';
+            var pollinterval;
+            var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
+
+            //
+            // poll function queries lambda function for vgw Status
+            // Once attached enable submit button
+            //
+
+            poll = (function (event) {
+                selectedVpcId = $("#VpcId option:selected").val();
+                $.ajax({
+                    url: 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/checkvgwstatus?VpcId=' +
+                        selectedVpcId + '&Region=eu-west-1',
+                    dataType: 'json',
+                    type: 'get',
+                    crossDomain: true,
+                    success: function (data) {
+                        $('.VgwStatus').text("Attaching");
+                        console.log(data);
+
+                        if (data["State"] === "attached") {
+
+                            $('.VgwStatus').text("Attached");
+                            $('.vgwID').text(data["VpnGatewayId"]);
+                            $('#transitsubmit').show();
+                            clearInterval(pollinterval);
+                        }
+                    }
+                });
+                // AJAX
+            });
+
+            //
+            // Submit Form data to API to create Subscriber connection
+            // Submit Button enabled when we get feedback that we are creating the subscriber VGW
+            //
+
             $("#subsbutton").click(function (event) {
                 event.preventDefault();
                 var formdata = $("form").serialize();
@@ -168,47 +273,43 @@
                     data: formdata,
                     url: subscriberurl,
                     success: function (response) {
+                        //poll();
                         //alert((response));  //get the url used in the ajax query
-                        console.log(response);
-                        if (document.getElementById("myform").elements["dryrun"].value ===
-                            'No') {
-                            console.log(document.getElementById("myform").elements["dryrun"]
-                                .value);
-                            document.getElementById("SubsOutputTxtId1").style.visibility =
-                                'visible';
-                            if (response["Result"] === "Success") {
-                                transitparams = $.param(response);
-                                document.getElementById("subsbutton").style.display =
-                                    'none'
-                                document.getElementById("transitsubmit").style.display =
-                                    'block';
+                        //console.log(response);
+                        $('.subscriberVpcOutput').show();
+                        if (response["Result"] === "Success") {
+                            $('#SubsOutputTxtSuccess').show();
+                            transitparams = $.param(response);
+                            $('.VgwAsntext').text(response["VgwAsn"]);
+                            $('.paGrouptext').text(response["PaGroupName"]);
+                            $('.configFiletext').text(response["messagefileName"]);
+
+                            if (document.getElementById("myform").elements["dryrun"].value ===
+                                'No') {
+                                //console.log(document.getElementById("myform").elements["dryrun"]
+                                //
+                                // If response is received enable submit button to config Transit Account VPN connections
+                                //
+
+                                $('#subsbutton').hide(function () {
+                                    pollinterval = setInterval(function () {
+                                        poll();
+                                    }, 2000)
+                                });
+                                $('#vgwStatustxt').show()
+                                $('#vgwStatusId').show();
+                                $('.VgwStatus').text("Attached");
+                                $('.vgwID').text("Not Created Yet");
+
                             }
+                            // Allocation Failed so print reason    
+                        } else {
+                            $('.subscriberVpcOutput').show();
+                            $('#SubsOutputTxtFailed').show();
+                            $('.failedReasonText').text(response["Reason"]);
+
+
                         }
-
-                        var keys = Object.keys(response);
-
-                        var txt = ""
-                        txt += "<table class=\"table\"><tbody>";
-                        for (j in response) {;
-                            //console.log(j);
-                            //console.log(response[j]); 
-
-                            txt += "<tr><td>" + j + "</td><td>" + response[j] +
-                                "</td></tr>";
-                        }
-                        txt += "</tbody></table>";
-                        document.getElementById("SubsOutputTxtId").style.visibility =
-                            'visible';
-
-                        console.log(txt);
-
-                        //
-                        // If response is received enable submit button to config Transit Account VPN connections
-                        //
-                        var divContainer = document.getElementById("SubsResultsId");
-                        divContainer.innerHTML = txt;
-                        divContainer.style.visibility = 'visible';
-
                     }
                 });
             });
@@ -217,11 +318,10 @@
         // Submit Form data to API to create Transit connection
         // Submit Button enabled when we get feedback that we are creating the subscriber VGW
         //
-        var transitparams = ''
-        var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn'
+
         $("#transitsubmit").click(function (event) {
             event.preventDefault();
-            transiturl = transiturlbase + '?' + transitparams + '&messagefileName=testfilemessage.json';
+            transiturl = transiturlbase + '?' + '&messagefileName=testfilemessage.json';
             $.ajax({
                 type: 'GET',
                 dataType: 'json',
@@ -231,11 +331,14 @@
                 url: transiturl,
                 success: function (response) {
                     alert((response['Result'] === "Success")); //get the url used in the ajax query
-                    console.log(response);
+                    //console.log(response);
+                    $('.transitVpcOutput').show();
+                    document.getElementById("TransitOutputTxtId").style.visibility = 'visible';
                     if (response) {
                         params = $.param(response);
                         document.getElementById("subsbutton").style.display = 'none'
                     }
+                    //Write response as a table
                     var keys = Object.keys(response);
                     var txt = ""
                     txt += "<table class=\"table\"><tbody>";
@@ -246,7 +349,7 @@
                         txt += "<tr><td>" + j + "</td><td>" + response[j] + "</td></tr>";
                     }
                     txt += "</tbody></table>";
-                    document.getElementById("TransitOutputTxtId").style.visibility = 'visible';
+
 
                     console.log(txt);
 
