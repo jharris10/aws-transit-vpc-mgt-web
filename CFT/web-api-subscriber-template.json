@@ -1,0 +1,466 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Adds browser based controls to the transit VPC solution ",
+    "Parameters": {
+
+        "LambdaBucketName": {
+            "Description": "Bucket name for Lambda files",
+            "Default": "jrh-lambda-ohio",
+            "Type": "String"
+        },
+        "SubscriberAssumeRoleArn": {
+            "Description": "Subscriber Account Assume Role ARN",
+            "Default": "arn:aws:iam::106808901xxx:role/SubscriberLambdaExecutionRole",
+            "Type": "String"
+        },
+        "subscriberConfigTable": {
+            "Default": "SubscriberConfig-vw4",
+            "Type": "String"
+        },
+        "SubscriberLocalDb": {
+            "Default": "SubscriberLocalDb-vw4",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "getvpcsLambda": {
+            "Type": "AWS::Lambda::Function",
+
+            "Properties": {
+                "FunctionName": {
+                    "Fn::Join": ["-", ["getvpcs", {
+                        "Ref": "AWS::StackName"
+                    }]]
+                },
+                "Description": "Get Available VPCIds",
+                "Handler": "getvpcs.lambda_handler",
+                "Role": {
+                    "Ref": "SubscriberAssumeRoleArn"
+                },
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "LambdaBucketName"
+                    },
+                    "S3Key": "ApiLambda.zip"
+                },
+                
+                "Runtime": "python3.6",
+                "Timeout": "60"
+            }
+        },
+        "apiDeleteSubsVpnLambda": {
+            "Type": "AWS::Lambda::Function",
+
+            "Properties": {
+                "FunctionName": {
+                    "Fn::Join": ["-", ["apiDeleteSubsVpnLambda", {
+                        "Ref": "AWS::StackName"
+                    }]]
+                },
+
+                "Description": "Allocate VPN resources from API",
+                "Handler": "apiDeleteSubsVpn.lambda_handler",
+                "Role": {
+                    "Ref": "SubscriberAssumeRoleArn"
+                },
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "LambdaBucketName"
+                    },
+                    "S3Key": "ApiLambda.zip"
+                },
+                "Environment": {
+                    "Variables": {
+
+                        "subscriberConfigTable":{
+                            "Ref":"subscriberConfigTable"
+                        },
+                        
+                        "Region": {
+                            "Ref": "AWS::Region"
+                        }
+                    }
+                },
+                "Runtime": "python3.6",
+                "Timeout": "300"
+            }
+        },
+        "apiAsyncCreateLambda": {
+            "Type": "AWS::Lambda::Function",
+
+            "Properties": {
+                "FunctionName": {
+                    "Fn::Join": ["-", ["apiAsyncCreateVGWLambda", {
+                        "Ref": "AWS::StackName"
+                    }]]
+                },
+
+                "Description": "Allocate VPN resources from API",
+                "Handler": "apiAsyncCreateVGW.lambda_handler",
+                "Role": {
+                    "Ref": "SubscriberAssumeRoleArn"
+                },
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "LambdaBucketName"
+                    },
+                    "S3Key": "ApiLambda.zip"
+                },
+                "Environment": {
+                    "Variables": {
+
+                        "subscriberConfigTable":{
+                            "Ref":"SubscriberAssumeRoleArn"
+                        },
+                        
+                        "Region": {
+                            "Ref": "AWS::Region"
+                        }
+                    }
+                },
+                "Runtime": "python3.6",
+                "Timeout": "300"
+            }
+        },
+        "checkvgwstatusLambda": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "FunctionName": {
+                    "Fn::Join": [
+                        "-", [
+                            "checkvgwstatusLambda",
+                            {
+                                "Ref": "AWS::StackName"
+                            }
+                        ]
+                    ]
+                },
+                "Description": "Allocate VPN resources from API",
+                "Handler": "checkvgwstatus.lambda_handler",
+                "Role": {
+                    "Ref": "SubscriberAssumeRoleArn"
+                },
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "LambdaBucketName"
+                    },
+                    "S3Key": "ApiLambda.zip"
+                },
+                "Environment": {
+                    "Variables": {
+                        "subscriberConfigTable":{
+                            "Ref":"subscriberConfigTable"
+                        }
+                    }
+                },
+                "Runtime": "python3.6",
+                "Timeout": "300"
+            }
+        },
+        "SubsVpcWebApi": {
+            "Type": "AWS::ApiGateway::RestApi",
+            "Properties": {
+                "Name": "Subscribing VPC Web Management API Cors",
+                "Description": "Used to manage creation and deletion of Transit VPC connections",
+                "FailOnWarnings": true
+
+            }
+        },
+        "checkvgwstatusRes": {
+            "Type": "AWS::ApiGateway::Resource",
+            "DependsOn": [
+                "SubsVpcWebApi"
+            ],
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ParentId": {
+                    "Fn::GetAtt": ["SubsVpcWebApi", "RootResourceId"]
+                },
+                "PathPart": "checkvgwstatus"
+            }
+        },
+        "checkvgwstatusGetMethod": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ResourceId": {
+                    "Ref": "checkvgwstatusRes"
+                },
+                "HttpMethod": "GET",
+                "AuthorizationType": "NONE",
+                "Integration": {
+                    "Type": "AWS_PROXY",
+                    "IntegrationHttpMethod": "GET",
+                    "Uri": {
+                        "Fn::Join": ["", ["arn:aws:apigateway:", {
+                            "Ref": "AWS::Region"
+                        }, ":lambda:path/2015-03-31/functions/", {
+                            "Fn::GetAtt": ["checkvgwstatusLambda", "Arn"]
+                        }, "/invocations"]]
+                    },
+                    "IntegrationResponses": [{
+                        "StatusCode": "200"
+                    }]
+                },
+                "MethodResponses": [{
+                    "StatusCode": "200",
+                    "ResponseModels": {
+                        "application/json": "Empty"
+                    }
+                }]
+
+            }
+        },
+        "checkvgwstatusOptionsMethod": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+                "AuthorizationType": "NONE",
+                "HttpMethod": "OPTIONS",
+                "MethodResponses": [{
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                        "method.response.header.Access-Control-Allow-Origin": true,
+                        "method.response.header.Access-Control-Allow-Headers": true,
+                        "method.response.header.Access-Control-Allow-Methods": true,
+                        "method.response.header.Access-Control-Allow-Credentials": true
+                    },
+                    "ResponseModels": {}
+                }],
+                "RequestParameters": {},
+                "Integration": {
+                    "Type": "MOCK",
+                    "RequestTemplates": {
+                        "application/json": "{statusCode:200}"
+                    },
+                    "IntegrationResponses": [{
+                        "StatusCode": "200",
+                        "ResponseParameters": {
+                            "method.response.header.Access-Control-Allow-Origin": "'*'",
+                            "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                            "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'",
+                            "method.response.header.Access-Control-Allow-Credentials": "'false'"
+                        },
+                        "ResponseTemplates": {
+                            "application/json": ""
+                        }
+                    }]
+                },
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ResourceId": {
+                    "Ref": "checkvgwstatusRes"
+                }
+            }
+        },
+        "getvpcsRes": {
+            "Type": "AWS::ApiGateway::Resource",
+            "DependsOn": [
+                "SubsVpcWebApi"
+            ],
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ParentId": {
+                    "Fn::GetAtt": ["SubsVpcWebApi", "RootResourceId"]
+                },
+                "PathPart": "getvpcs"
+            }
+        },
+        "getvpcsGetMethod": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ResourceId": {
+                    "Ref": "getvpcsRes"
+                },
+                "HttpMethod": "GET",
+                "AuthorizationType": "NONE",
+                "Integration": {
+                    "Type": "AWS_PROXY",
+                    "IntegrationHttpMethod": "GET",
+                    "Uri": {
+                        "Fn::Join": ["", ["arn:aws:apigateway:", {
+                            "Ref": "AWS::Region"
+                        }, ":lambda:path/2015-03-31/functions/", {
+                            "Fn::GetAtt": ["getvpcsLambda", "Arn"]
+                        }, "/invocations"]]
+                    },
+                    "IntegrationResponses": [{
+                        "StatusCode": "200"
+                    }]
+                },
+                "MethodResponses": [{
+                    "StatusCode": "200",
+                    "ResponseModels": {
+                        "application/json": "Empty"
+                    }
+                }]
+
+            }
+        },
+        "getvpcsOptionsMethod": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+                "AuthorizationType": "NONE",
+                "HttpMethod": "OPTIONS",
+                "MethodResponses": [{
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                        "method.response.header.Access-Control-Allow-Origin": true,
+                        "method.response.header.Access-Control-Allow-Headers": true,
+                        "method.response.header.Access-Control-Allow-Methods": true,
+                        "method.response.header.Access-Control-Allow-Credentials": true
+                    },
+                    "ResponseModels": {}
+                }],
+                "RequestParameters": {},
+                "Integration": {
+                    "Type": "MOCK",
+                    "RequestTemplates": {
+                        "application/json": "{statusCode:200}"
+                    },
+                    "IntegrationResponses": [{
+                        "StatusCode": "200",
+                        "ResponseParameters": {
+                            "method.response.header.Access-Control-Allow-Origin": "'*'",
+                            "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                            "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'",
+                            "method.response.header.Access-Control-Allow-Credentials": "'false'"
+                        },
+                        "ResponseTemplates": {
+                            "application/json": ""
+                        }
+                    }]
+                },
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ResourceId": {
+                    "Ref": "getvpcsRes"
+                }
+            }
+        },
+        "apiDeleteSubsVpnRes": {
+            "Type": "AWS::ApiGateway::Resource",
+            "DependsOn": [
+                "SubsVpcWebApi"
+            ],
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ParentId": {
+                    "Fn::GetAtt": ["SubsVpcWebApi", "RootResourceId"]
+                },
+                "PathPart": "deletesubsvpn"
+            }
+        },
+        "apiDeleteSubsVpnresGetMethod": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ResourceId": {
+                    "Ref": "apiDeleteSubsVpnRes"
+                },
+                "HttpMethod": "GET",
+                "AuthorizationType": "NONE",
+                "Integration": {
+                    "Type": "AWS_PROXY",
+                    "IntegrationHttpMethod": "GET",
+                    "Uri": {
+                        "Fn::Join": ["", ["arn:aws:apigateway:", {
+                            "Ref": "AWS::Region"
+                        }, ":lambda:path/2015-03-31/functions/", {
+                            "Fn::GetAtt": ["apiDeleteSubsVpnLambda", "Arn"]
+                        }, "/invocations"]]
+                    },
+                    "IntegrationResponses": [{
+                        "StatusCode": "200"
+                    }]
+                },
+                "MethodResponses": [{
+                    "StatusCode": "200",
+                    "ResponseModels": {
+                        "application/json": "Empty"
+                    }
+                }]
+            }
+        },
+        "deletesubsvpnresOptionsMethod": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+                "AuthorizationType": "NONE",
+                "HttpMethod": "OPTIONS",
+                "MethodResponses": [{
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                        "method.response.header.Access-Control-Allow-Origin": true,
+                        "method.response.header.Access-Control-Allow-Headers": true,
+                        "method.response.header.Access-Control-Allow-Methods": true,
+                        "method.response.header.Access-Control-Allow-Credentials": true
+                    },
+                    "ResponseModels": {}
+                }],
+                "RequestParameters": {},
+                "Integration": {
+                    "Type": "MOCK",
+                    "RequestTemplates": {
+                        "application/json": "{statusCode:200}"
+                    },
+                    "IntegrationResponses": [{
+                        "StatusCode": "200",
+                        "ResponseParameters": {
+                            "method.response.header.Access-Control-Allow-Origin": "'*'",
+                            "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                            "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'",
+                            "method.response.header.Access-Control-Allow-Credentials": "'false'"
+                        },
+                        "ResponseTemplates": {
+                            "application/json": ""
+                        }
+                    }]
+                },
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ResourceId": {
+                    "Ref": "apiDeleteSubsVpnRes"
+                }
+            }
+        },
+        "ApiDeployment": {
+            "Type": "AWS::ApiGateway::Deployment",
+            "DependsOn": [
+                "SubsVpcWebApi", "apiDeleteSubsVpnresGetMethod", "getvpcsGetMethod", "apiDeleteSubsVpnresGetMethod"
+            ],
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                }
+            }
+        },
+        "SubsVpcWebApiStage": {
+            "Type": "AWS::ApiGateway::Stage",
+            "Properties": {
+                "DeploymentId": {
+                    "Ref": "ApiDeployment"
+                },
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "StageName": "Production"
+            }
+        }
+    },
+    "Outputs": {}
+}
