@@ -5,6 +5,7 @@ import sys, traceback
 import json
 from commonLambdaFunctions import fetchFromTransitConfigTable, publishToSns
 from boto3.dynamodb.conditions import Key, Attr
+from secretsmanager import get_secret
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -139,6 +140,9 @@ def lambda_handler(event,context):
     logger.info("Got Event: {}".format(event))
     try:
         config = fetchFromTransitConfigTable(transitConfigTable)
+        creds = get_secret()
+        username = list(creds.keys())[0]
+        password = creds[login]
         logger.info("Got config: {}".format(config))
         if config:
             #deleteVpnConfigurationFromPaGroup() this will be from pan_vpn_generic file
@@ -148,7 +152,7 @@ def lambda_handler(event,context):
                 paGroupResult = getItemFromPaGroupInfo(config['TransitPaGroupInfo'],vpcResult['PaGroupName'])
                 logger.info('Got paGroupResult {} from {}'.format(paGroupResult,config['TransitPaGroupInfo']))
                 if paGroupResult:
-                    api_key = pan_vpn_generic.getApiKey(paGroupResult['N1Mgmt'], config['UserName'],config['Password'])
+                    api_key = pan_vpn_generic.getApiKey(paGroupResult['N1Mgmt'], username, password)
                     logger.info('Got apikey ')
                     #Deleting the VPN connections with the PA Group
                     logger.info('Calling paGroupDeleteVpn with {} {} {}'.format(paGroupResult, vpcResult['Node1VpnId'],vpcResult['Node2VpnId']))
