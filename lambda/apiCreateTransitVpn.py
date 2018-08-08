@@ -4,6 +4,7 @@ import logging, os
 from commonLambdaFunctions import publishToSns, fetchFromTransitConfigTable
 import pan_vpn_generic
 import json
+from secretsmanager import get_secret
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -143,7 +144,7 @@ def downloadFileFromS3(file,bucket):
         logger.error("Error uploading file to S3 Bucket, Error : %s" % str(e))
 
 def response(message, status_code):
-            return {
+            return{ 
                 'statusCode': str(status_code),
                 'body': json.dumps(message),
                 'headers': {
@@ -159,11 +160,15 @@ def lambda_handler(event,context):
     config = fetchFromTransitConfigTable(transitConfigTable)
     filecontents = downloadFileFromS3(event['queryStringParameters']['messagefileName'], config['TransitVpnBucketName'])
     logger.info('Downloaded from S3 object and Result is {} '.format(filecontents))
+    creds = get_secret()
+    username = list(creds.keys())[0]
+    password = creds[login]
+
     
     if config:
         paGroupInfo = getPaGroupInfo(config['TransitPaGroupInfo'],filecontents['PaGroupName'])
         if paGroupInfo:
-            api_key = pan_vpn_generic.getApiKey(paGroupInfo['N1Mgmt'], config['UserName'], config['Password'])
+            api_key = pan_vpn_generic.getApiKey(paGroupInfo['N1Mgmt'], username, password)
             logger.info("Got api_key: {}".format(api_key))
             paVpnStatus = pan_vpn_generic.paGroupConfigureVpn(api_key, paGroupInfo, config['TransitVpnBucketName'], filecontents['VpnN1'],filecontents['VpnN2'])
             logger.info("Got paVpnStatus: {}".format(paVpnStatus))
