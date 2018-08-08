@@ -31,19 +31,15 @@ Output:
 }
 '''
 
-subscriberConfigTable = os.environ['subscriberConfigTable']
 subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
 #
-# THIS COULD BE PASSED IN VIA URL FOR MULTI ACCOUNT
-#apicreatevgwSnsArn = os.environ['apiCreateVgwSnsArn']
-#
-#
+
 dynamodb = boto3.resource('dynamodb', region_name=region)
 dryrun = False
 transitConfig = {}
-subscriberConfig = {}
+
 
 
 #
@@ -86,18 +82,7 @@ def fetchFromTransitConfigTable(transitConfigTable=None):
         return False
 
 
-def fetchFromSubscriberConfigTable(subscriberConfigTable=None):
-    """Get the data from SubscriberConfig table and retruns it as dictionary
-    """
-    try:
-        table = dynamodb.Table(subscriberConfigTable)
-        response = table.scan()
-        for item in response['Items']:
-            subscriberConfig[item['Property']] = item['Value']
-        return subscriberConfig
-    except Exception as e:
-        logger.info("Fetching From Config talbe is Failed, Error: {}".format(str(e)))
-        return False
+
 
 
 def uploadObjectToS3(vpnConfiguration, bucketName, assumeRoleArn=None):
@@ -434,18 +419,6 @@ def updateVpcTable(tableName, data, paGroupName):
 # End of From fetchVpnServerDetailsLambda
 #
 
-def updateDynamoDb(tableName, vpcId, vpcCidr, awsRegion):
-    logger.info('Called updateDynamoDb with {} {} {} {}'.format(tableName, vpcId, vpcCidr, awsRegion))
-    """Updates SubscriberLocalDb with VpcId, VpcCidr and Region
-    """
-    try:
-        dynamodb = boto3.resource('dynamodb', region_name=awsRegion)
-        table = dynamodb.Table(tableName)
-        item = {'VpcId': vpcId, 'VpcCidr': vpcCidr, 'Region': awsRegion}
-        table.put_item(Item=item)
-        logger.info("Updated Subscriber local DynmodDB with vpc-id: {} and vpc-cidr: {}".format(vpcId, vpcCidr))
-    except Exception as e:
-        logger.error("Error from updateDynamoDb(), {}".format(str(e)))
 
 
 def updateTags(awsRegion, vpcId, oldVpc):
@@ -469,48 +442,6 @@ def updateTags(awsRegion, vpcId, oldVpc):
     except Exception as e:
         logger.info("Updating VPC-Failed tags failed, Error: {}".format(str(e)))
         sys.exit(0)
-
-
-def putItemSubscriberLocalDb(tableName, item):
-    logger.info('Called putItemSubscriberLocalDb with {} {}'.format(tableName, item))
-    """Puts an Item into the SubscriberLocalDb table with VpcId, VpcCidr, VgwId, Cgw1Id, Cgw2Id, Vpn1Id,Vpn2Id and PaGroupName
-    """
-    try:
-        dynamodb = boto3.resource('dynamodb', region_name=item['Region'])
-        table = dynamodb.Table(tableName)
-        table.put_item(Item=item)
-        logger.info("Updating LocalDb with data: {}".format(item))
-    except Exception as e:
-        logger.error("Updating LocalDb failed, Error: {}".format(str(e)))
-
-
-def createVgwAttachToVpc(vpcId, vgwAsn, region, paGroup):
-    logger.info(
-        'Called createVgwAttachToVpc(vpcId, vgwAsn, region, paGroup) with {} {} {} {}'.format(vpcId, vgwAsn, region,
-                                                                                              paGroup))
-    """Creates a VGW and attach it to the VPC, returns VgwId
-    """
-    try:
-        tags = [{'Key': 'Name', 'Value': paGroup}]
-        import time
-        ec2Connection = boto3.client('ec2', region_name=region)
-        # Create VGW with vgwAsn
-        response = ec2Connection.create_vpn_gateway(Type='ipsec.1', AmazonSideAsn=int(vgwAsn))
-        # Attach VGW to VPC
-        while True:
-            status = ec2Connection.attach_vpn_gateway(VpcId=vpcId, VpnGatewayId=response['VpnGateway']['VpnGatewayId'],
-                                                      DryRun=False)['VpcAttachment']
-            if status['State'] == 'attaching':
-                time.sleep(2)
-            elif status['State'] == 'attached':
-                ec2Connection.create_tags(Resources=[response['VpnGateway']['VpnGatewayId']], Tags=tags)
-                return response['VpnGateway']['VpnGatewayId']
-            else:
-                return None
-        return response['VpnGateway']['VpnGatewayId']
-    except Exception as e:
-        logger.error("Error creating Vgw and Attaching it to VPC, Error : {}".format(str(e)))
-        return False
 
 
 def updateVpcVpnTable(tableName, item):
@@ -582,14 +513,13 @@ def lambda_handler(event, context):
 
     if event['queryStringParameters']['dryrun'] == 'Yes':  # Set True for 'Yes' False for "No'
         dryrun = True
+        apicreatevgwSnsArn = event['queryStringParameters']['apicreatevgwSnsArn']
     try:
         transitConfig = fetchFromTransitConfigTable(transitConfigTable)
         paloAltoGroupCapacity = transitConfig['PaGroupMaxVpc']
         if transitConfig:
-            
-			
-			apicreatevgwSnsArn=event['apicreatevgwSnsArn']
-            
+            subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
+
             # subscriberAssumeRoleArn=event['SubscriberAssumeRoleArn']
 
             # TransitTaskHandler data event
