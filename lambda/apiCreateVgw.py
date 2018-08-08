@@ -37,7 +37,7 @@ transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
 #
 # THIS COULD BE PASSED IN VIA URL FOR MULTI ACCOUNT
-apicreatevgwSnsArn = os.environ['apiCreateVgwSnsArn']
+#apicreatevgwSnsArn = os.environ['apiCreateVgwSnsArn']
 #
 #
 dynamodb = boto3.resource('dynamodb', region_name=region)
@@ -586,8 +586,10 @@ def lambda_handler(event, context):
         transitConfig = fetchFromTransitConfigTable(transitConfigTable)
         paloAltoGroupCapacity = transitConfig['PaGroupMaxVpc']
         if transitConfig:
-            subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
-
+            
+			
+			apicreatevgwSnsArn=event['apicreatevgwSnsArn']
+            
             # subscriberAssumeRoleArn=event['SubscriberAssumeRoleArn']
 
             # TransitTaskHandler data event
