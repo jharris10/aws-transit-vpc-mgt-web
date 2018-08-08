@@ -165,7 +165,9 @@
     <script type="text/javascript">
         var transitparams = '';
         var pollinterval;
-        var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
+        //var TransitUrlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
+        var TransitUrlbase = 'https://ey6drb8gig.execute-api.us-east-2.amazonaws.com/Production'
+        var SubscribingUrlBase = 'https://eofd0wq248.execute-api.us-east-2.amazonaws.com/Production'
 
         $(document).ready(function () {
 
@@ -192,9 +194,11 @@
                         alert('Got unknown error check Cloudwatch logs!');
                     }
                 },
-                url: "https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/getvpcs",
+                // Get the VPCid CidrBlock in the account
+                url: SubscribingUrlBase + '/getvpcs',
                 success: function (response) {
-                    vpcdata = JSON.parse(response.body);
+                    vpcdata = response;
+                    //vpcdata = JSON.parse(response.body);
                     $.each(vpcdata, function (key, entry) {
                         dropdown.append($('<option></option>').attr('value', entry.VpcId).text(
                             entry.VpcId));
@@ -216,11 +220,6 @@
             //
             //poll function
             //
-            var transitparams = '';
-            var pollinterval;
-            var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
-
-            //
             // poll function queries lambda function for vgw Status
             // Once attached enable submit button
             //
@@ -228,7 +227,7 @@
             poll = (function (event) {
                 selectedVpcId = $("#VpcId option:selected").val();
                 $.ajax({
-                    url: 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/checkvgwstatus?VpcId=' +
+                    url: SubscribingUrlBase + '/checkvgwstatus?VpcId=' +
                         selectedVpcId + '&Region=eu-west-1',
                     dataType: 'json',
                     type: 'get',
@@ -259,7 +258,7 @@
                 var formdata = $("form").serialize();
                 formdata = formdata + '&VpcId=' + $("#VpcId option:selected").val();
                 //console.log(formdata);
-                subscriberurl = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
+                subscriberurl = TransitUrlbase + '/fetchtransvpn';
                 $.ajax({
                     type: 'GET',
                     dataType: 'json',
