@@ -5,24 +5,39 @@
 
         "LambdaBucketName": {
             "Description": "Bucket name for Lambda files",
-            "Default": "jrh-lambda-ohio",
+            "Default": "jrh-lambda",
             "Type": "String"
         },
         "SubscriberAssumeRoleArn": {
-            "Description": "Subscriber Account Assume Role ARN",
-            "Default": "arn:aws:iam::106808901xxx:role/SubscriberLambdaExecutionRole",
+            "Description": "Subscriber Account Lambda Execution Role ARN",
+            "Default": "arn:aws:iam::106808901653:role/SubscriberLambdaExecutionRole-new-subscriber-account",
             "Type": "String"
         },
         "subscriberConfigTable": {
-            "Default": "SubscriberConfig-vw4",
+            "Default": "SubscriberConfig-subscriber-account-new",
             "Type": "String"
         },
         "SubscriberLocalDb": {
-            "Default": "SubscriberLocalDb-vw4",
+            "Default": "SubscriberLocalDb-subscriber-account-new",
             "Type": "String"
         }
     },
     "Resources": {
+        "getvpcsRes": {
+            "Type": "AWS::ApiGateway::Resource",
+            "DependsOn": [
+                "SubsVpcWebApi"
+            ],
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "SubsVpcWebApi"
+                },
+                "ParentId": {
+                    "Fn::GetAtt": ["SubsVpcWebApi", "RootResourceId"]
+                },
+                "PathPart": "getvpcs"
+            }
+        },
         "getvpcsLambda": {
             "Type": "AWS::Lambda::Function",
 
@@ -43,11 +58,50 @@
                     },
                     "S3Key": "ApiLambda.zip"
                 },
-                
+
                 "Runtime": "python3.6",
                 "Timeout": "60"
             }
         },
+
+        "getvpcsLambdaPermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "Action": "lambda:invokeFunction",
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "getvpcsLambda",
+                  "Arn"
+                ]
+              },
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "SubsVpcWebApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            },
+            "DependsOn": [
+              "SubsVpcWebApi"
+            ]
+          },
+
+
         "apiDeleteSubsVpnLambda": {
             "Type": "AWS::Lambda::Function",
 
@@ -72,10 +126,10 @@
                 "Environment": {
                     "Variables": {
 
-                        "subscriberConfigTable":{
-                            "Ref":"subscriberConfigTable"
+                        "subscriberConfigTable": {
+                            "Ref": "subscriberConfigTable"
                         },
-                        
+
                         "Region": {
                             "Ref": "AWS::Region"
                         }
@@ -84,6 +138,26 @@
                 "Runtime": "python3.6",
                 "Timeout": "300"
             }
+        },
+        "apiDeleteSubsVpnLambdaPermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "Action": "lambda:invokeFunction",
+                "FunctionName": {
+                    "Fn::GetAtt": ["apiDeleteSubsVpnLambda", "Arn"]
+                },
+                "Principal": "apigateway.amazonaws.com",
+                "SourceArn": {
+                    "Fn::Join": ["", ["arn:aws:execute-api:", {
+                        "Ref": "AWS::Region"
+                    }, ":", {
+                        "Ref": "AWS::AccountId"
+                    }, ":", {
+                        "Ref": "SubsVpcWebApi"
+                    }, "/*"]]
+                }
+            },
+            "DependsOn": ["SubsVpcWebApi"]
         },
         "apiAsyncCreateLambda": {
             "Type": "AWS::Lambda::Function",
@@ -109,10 +183,10 @@
                 "Environment": {
                     "Variables": {
 
-                        "subscriberConfigTable":{
-                            "Ref":"SubscriberAssumeRoleArn"
+                        "subscriberConfigTable": {
+                            "Ref": "SubscriberAssumeRoleArn"
                         },
-                        
+
                         "Region": {
                             "Ref": "AWS::Region"
                         }
@@ -121,6 +195,32 @@
                 "Runtime": "python3.6",
                 "Timeout": "300"
             }
+        },
+        "apiAsyncCreateLambdaPermission": {
+            "Properties": {
+                "Action": "lambda:InvokeFunction",
+                "FunctionName": {
+                    "Fn::GetAtt": ["apiAsyncCreateLambda", "Arn"]
+                },
+                "Principal": "sns.amazonaws.com",
+                "SourceArn": {
+                    "Ref": "apiAsyncCreateLambdaTopic"
+                }
+            },
+            "Type": "AWS::Lambda::Permission",
+            "DependsOn": ["apiAsyncCreateLambdaTopic"]
+        },
+        "apiAsyncCreateLambdaTopic": {
+            "Type": "AWS::SNS::Topic",
+            "Properties": {
+                "Subscription": [{
+                    "Endpoint": {
+                        "Fn::GetAtt": ["apiAsyncCreateLambda", "Arn"]
+                    },
+                    "Protocol": "lambda"
+                }]
+            },
+            "DependsOn": ["apiAsyncCreateLambda"]
         },
         "checkvgwstatusLambda": {
             "Type": "AWS::Lambda::Function",
@@ -148,8 +248,8 @@
                 },
                 "Environment": {
                     "Variables": {
-                        "subscriberConfigTable":{
-                            "Ref":"subscriberConfigTable"
+                        "subscriberConfigTable": {
+                            "Ref": "subscriberConfigTable"
                         }
                     }
                 },
@@ -194,7 +294,7 @@
                 "AuthorizationType": "NONE",
                 "Integration": {
                     "Type": "AWS_PROXY",
-                    "IntegrationHttpMethod": "GET",
+                    "IntegrationHttpMethod": "POST",
                     "Uri": {
                         "Fn::Join": ["", ["arn:aws:apigateway:", {
                             "Ref": "AWS::Region"
@@ -257,21 +357,7 @@
                 }
             }
         },
-        "getvpcsRes": {
-            "Type": "AWS::ApiGateway::Resource",
-            "DependsOn": [
-                "SubsVpcWebApi"
-            ],
-            "Properties": {
-                "RestApiId": {
-                    "Ref": "SubsVpcWebApi"
-                },
-                "ParentId": {
-                    "Fn::GetAtt": ["SubsVpcWebApi", "RootResourceId"]
-                },
-                "PathPart": "getvpcs"
-            }
-        },
+
         "getvpcsGetMethod": {
             "Type": "AWS::ApiGateway::Method",
             "Properties": {
@@ -285,7 +371,7 @@
                 "AuthorizationType": "NONE",
                 "Integration": {
                     "Type": "AWS_PROXY",
-                    "IntegrationHttpMethod": "GET",
+                    "IntegrationHttpMethod": "POST",
                     "Uri": {
                         "Fn::Join": ["", ["arn:aws:apigateway:", {
                             "Ref": "AWS::Region"
@@ -376,7 +462,7 @@
                 "AuthorizationType": "NONE",
                 "Integration": {
                     "Type": "AWS_PROXY",
-                    "IntegrationHttpMethod": "GET",
+                    "IntegrationHttpMethod": "POST",
                     "Uri": {
                         "Fn::Join": ["", ["arn:aws:apigateway:", {
                             "Ref": "AWS::Region"
