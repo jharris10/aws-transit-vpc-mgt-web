@@ -5,20 +5,20 @@
 
         "LambdaBucketName": {
             "Description": "Bucket name for Lambda files",
-            "Default": "jrh-lambda",
+            "Default": "xxx-lambda",
             "Type": "String"
         },
         "SubscriberAssumeRoleArn": {
             "Description": "Subscriber Account Lambda Execution Role ARN",
-            "Default": "arn:aws:iam::106808901653:role/SubscriberLambdaExecutionRole-new-subscriber-account",
+            "Default": "arn:aws:iam::10680890xxxx:role/SubscriberLambdaExecutionRole-xxxx",
             "Type": "String"
         },
         "subscriberConfigTable": {
-            "Default": "SubscriberConfig-subscriber-account-new",
+            "Default": "SubscriberConfig-xxxx",
             "Type": "String"
         },
         "SubscriberLocalDb": {
-            "Default": "SubscriberLocalDb-subscriber-account-new",
+            "Default": "SubscriberLocalDb-xxxx",
             "Type": "String"
         }
     },
