@@ -100,8 +100,6 @@
               "SubsVpcWebApi"
             ]
           },
-
-
         "apiDeleteSubsVpnLambda": {
             "Type": "AWS::Lambda::Function",
 
