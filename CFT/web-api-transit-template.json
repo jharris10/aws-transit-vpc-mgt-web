@@ -13,7 +13,6 @@
             "Default": "arn:aws:iam::1068089xxxx:role/TransitLambdaExecutionRole-xxxx",
             "Type": "String"
         },
-
         "SubscriberAssumeRoleArn": {
             "Description": "Role used to submit to subscriber SNS topic",
             "Default": "arn:aws:iam::30419126xxxx:role/TransitAssumeRole-xxx",

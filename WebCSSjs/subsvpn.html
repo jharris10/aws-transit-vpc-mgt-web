@@ -166,8 +166,9 @@
         var transitparams = '';
         var pollinterval;
         //var TransitUrlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
-        var TransitUrlbase = 'https://ey6drb8gig.execute-api.us-east-2.amazonaws.com/Production'
-        var SubscribingUrlBase = 'https://eofd0wq248.execute-api.us-east-2.amazonaws.com/Production'
+        var TransitUrlbase = 'https://nkvn2k7hi3.execute-api.eu-west-1.amazonaws.com/Production'
+        var SubscribingUrlBase = 'https://v2i8mulsof.execute-api.eu-west-1.amazonaws.com/Production'
+        var LambdaSnsTopic = 'arn:aws:sns:eu-west-1:106808901653:subscriber-web-api-apiAsyncCreateLambdaTopic-YR2CEP4BK37L'
 
         $(document).ready(function () {
 
@@ -256,7 +257,7 @@
             $("#subsbutton").click(function (event) {
                 event.preventDefault();
                 var formdata = $("form").serialize();
-                formdata = formdata + '&VpcId=' + $("#VpcId option:selected").val();
+                formdata = formdata+ '&apicreatevgwSnsArn=' + LambdaSnsTopic + '&VpcId=' + $("#VpcId option:selected").val();
                 //console.log(formdata);
                 subscriberurl = TransitUrlbase + '/fetchtransvpn';
                 $.ajax({
@@ -276,6 +277,7 @@
                         //alert((response));  //get the url used in the ajax query
                         //console.log(response);
                         $('.subscriberVpcOutput').show();
+                        $('#SubsOutputTxtFailed').hide();
                         if (response["Result"] === "Success") {
                             $('#SubsOutputTxtSuccess').show();
                             transitparams = $.param(response);
