@@ -155,7 +155,7 @@
                     ]
                 },
                 "Description": "Allocate VPN resources from API",
-                "Handler": "apiDeleteTransitVpnLambda.lambda_handler",
+                "Handler": "apiDeleteTransitVpn.lambda_handler",
                 "Role": {
                     "Ref": "LambdaExecutionRole"
                 },
