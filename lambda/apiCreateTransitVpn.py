@@ -44,6 +44,8 @@ region = os.environ['Region']
 secret_name = os.environ['secret_name']
 endpoint_url = os.environ['endpoint_url']
 
+
+
 dynamodb = boto3.resource('dynamodb', region_name=region)
 
 
