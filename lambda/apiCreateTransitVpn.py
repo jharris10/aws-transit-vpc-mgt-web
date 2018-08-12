@@ -41,6 +41,8 @@ Input:
 #region = 'us-east-1'
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
+secret_name = os.environ['secret_name']
+endpoint_url = os.environ['endpoint_url']
 
 dynamodb = boto3.resource('dynamodb', region_name=region)
 
@@ -160,7 +162,7 @@ def lambda_handler(event,context):
     config = fetchFromTransitConfigTable(transitConfigTable)
     filecontents = downloadFileFromS3(event['queryStringParameters']['messagefileName'], config['TransitVpnBucketName'])
     logger.info('Downloaded from S3 object and Result is {} '.format(filecontents))
-    creds = get_secret()
+    creds = get_secret(secret_name,endpoint_url,region)
     username = list(creds.keys())[0]
     password = creds[login]
 
