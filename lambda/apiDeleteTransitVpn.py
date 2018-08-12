@@ -15,8 +15,8 @@ logger.setLevel(logging.INFO)
 
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
-secret_name = os.environ['secret_name']
-endpoint_url = os.environ['endpoint_url']
+secretName = os.environ['secretName']
+endpointUrl = os.environ['endpointUrl']
 
 
 '''
@@ -167,7 +167,7 @@ def lambda_handler(event, context):
     logger.info("Got Event: {}".format(event))
     try:
         config = fetchFromTransitConfigTable(transitConfigTable)
-        creds = get_secret(secret_name,endpoint_url,region)
+        creds = get_secret(secretName,endpointUrl,region)
         username = list(creds.keys())[0]
         password = creds[login]
         logger.info("Got config: {}".format(config))

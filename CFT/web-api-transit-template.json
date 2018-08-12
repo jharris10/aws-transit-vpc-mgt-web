@@ -27,12 +27,12 @@
             "Default": "TransitConfig-xxxxx",
             "Type": "String"
         },
-        "secret_name":{
+        "secretname":{
             "Description": "DynamoDb table for transit configuration data",
-            "Default": "secret_name",
+            "Default": "secretname",
             "Type": "String"
         },
-        "endpoint_url":{
+        "endpointurl":{
             "Description": "URL for the secrets manager",
             "Default": "https://secretsmanager.eu-west-1.amazonaws.com",
             "Type": "String"
@@ -69,11 +69,11 @@
                         "Region": {
                             "Ref": "AWS::Region"
                         },
-                        "secret_name":{
-                            "Ref": "secret_name"
+                        "secretName":{
+                            "Ref": "secretName"
                         },
-                        "endpoint_url":{
-                            "Ref":"endpoint_url"
+                        "endpointUrl":{
+                            "Ref":"endpointUrl"
                         }
                     }
                 },
@@ -192,11 +192,11 @@
                         "Region": {
                             "Ref": "AWS::Region"
                         },
-                        "secret_name":{
-                            "Ref": "secret_name"
+                        "secretName":{
+                            "Ref": "secretName"
                         },
-                        "endpoint_url":{
-                            "Ref":"endpoint_url"
+                        "endpointUrl":{
+                            "Ref":"endpointUrl"
                         }
                     }
                 },
