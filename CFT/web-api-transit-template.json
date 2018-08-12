@@ -89,7 +89,7 @@
                             },
                             ":",
                             {
-                                "Ref": "SubsVpcWebApi"
+                                "Ref": "TransitVpcWebApi"
                             },
                             "/*"
                         ]
@@ -97,7 +97,7 @@
                 }
             },
             "DependsOn": [
-                "SubsVpcWebApi"
+                "TransitVpcWebApi"
             ]
         },
         "apiCreateVgwLambda": {
