@@ -31,7 +31,7 @@ Output:
 }
 '''
 
-subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
+#subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
 #
@@ -518,9 +518,7 @@ def lambda_handler(event, context):
         transitConfig = fetchFromTransitConfigTable(transitConfigTable)
         paloAltoGroupCapacity = transitConfig['PaGroupMaxVpc']
         if transitConfig:
-            subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
-
-            # subscriberAssumeRoleArn=event['SubscriberAssumeRoleArn']
+            TransitAssumeRoleArn = os.environ['TransitAssumeRoleArn']
 
             # TransitTaskHandler data event
             transitTaskHandler = {'Action': 'TransitTaskHandler'}
