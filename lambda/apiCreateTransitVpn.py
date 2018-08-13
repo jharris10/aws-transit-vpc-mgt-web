@@ -38,7 +38,7 @@ Input:
 }
 
 '''
-#region = 'us-east-1'
+
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
 secretName = os.environ['secretName']
@@ -165,8 +165,8 @@ def lambda_handler(event,context):
     filecontents = downloadFileFromS3(event['queryStringParameters']['messagefileName'], config['TransitVpnBucketName'])
     logger.info('Downloaded from S3 object and Result is {} '.format(filecontents))
     creds = get_secret(secretName,endpointUrl,region)
-    username = list(creds.keys())[0]
-    password = creds[login]
+    username = creds['username']
+    password = creds['password']
 
     
     if config:

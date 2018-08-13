@@ -20,8 +20,7 @@ subscriberConfigTable = os.environ['subscriberConfigTable']
 region = os.environ['Region']
 subscribingVpcTag = 'subscribingVpc'
 
-transitSnsTopicArn=os.environ['transitSnsTopicArn']
-transitAssumeRoleArn=os.environ['transitAssumeRoleArn']
+
 
 def deleteItemFromLocalDb(tableName, vpcId):
     """Deletes an Item from SubscriberLocalDb table with specified VpcId key

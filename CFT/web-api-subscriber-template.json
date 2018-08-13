@@ -5,20 +5,20 @@
 
         "LambdaBucketName": {
             "Description": "Bucket name for Lambda files",
-            "Default": "xxx-lambda",
+            "Default": "vw-transitvpc-test2-prerequisites",
             "Type": "String"
         },
         "SubscriberAssumeRoleArn": {
             "Description": "Subscriber Account Lambda Execution Role ARN",
-            "Default": "arn:aws:iam::10680890xxxx:role/SubscriberLambdaExecutionRole-xxxx",
+            "Default": "arn:aws:iam::304191265855:role/SubscriberLambdaExecutionRole-subscriber-stack",
             "Type": "String"
         },
         "subscriberConfigTable": {
-            "Default": "SubscriberConfig-xxxx",
+            "Default": "SubscriberConfig-subscriber-stack",
             "Type": "String"
         },
         "SubscriberLocalDb": {
-            "Default": "SubscriberLocalDb-xxxx",
+            "Default": "SubscriberLocalDb-subscriber-stack",
             "Type": "String"
         },
         "trustedSecurityGroup": {
@@ -206,7 +206,7 @@
                     "Variables": {
 
                         "subscriberConfigTable": {
-                            "Ref": "SubscriberAssumeRoleArn"
+                            "Ref": "subscriberConfigTable"
                         },
 
                         "Region": {

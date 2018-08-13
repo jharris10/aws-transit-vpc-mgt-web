@@ -168,8 +168,9 @@ def lambda_handler(event, context):
     try:
         config = fetchFromTransitConfigTable(transitConfigTable)
         creds = get_secret(secretName,endpointUrl,region)
-        username = list(creds.keys())[0]
-        password = creds[login]
+        logger.info("Got creds {}".format(creds))
+        username = creds['username']
+        password = creds['password']
         logger.info("Got config: {}".format(config))
         if config:
             # deleteVpnConfigurationFromPaGroup() this will be from pan_vpn_generic file
