@@ -5,17 +5,17 @@
 
         "LambdaBucketName": {
             "Description": "Bucket name for Lambda files",
-            "Default": "xxxx",
+            "Default": "jrh-lambda",
             "Type": "String"
         },
         "LambdaExecutionRole": {
             "Description": "Transit Account Lambda Execution Role ARN",
-            "Default": "arn:aws:iam::1068089xxxx:role/TransitLambdaExecutionRole-xxxx",
+            "Default": "arn:aws:iam::106808901653:role/TransitLambdaExecutionRole-new-transit-account",
             "Type": "String"
         },
         "SubscriberAssumeRoleArn": {
             "Description": "Role used to submit to subscriber SNS topic",
-            "Default": "arn:aws:iam::30419126xxxx:role/TransitAssumeRole-xxx",
+            "Default": "arn:aws:iam::106808901653:role/TransitAssumeRole-new-transit-account",
             "Type": "String"
         },
         "paloAltoGroupCapacity": {
@@ -24,18 +24,30 @@
         },
         "transitConfigTable": {
             "Description": "DynamoDb table for transit configuration data",
-            "Default": "TransitConfig-xxxxx",
+            "Default": "TransitConfig-new-transit-account",
             "Type": "String"
         },
-        "secretname":{
-            "Description": "DynamoDb table for transit configuration data",
-            "Default": "secretname",
+        "secretName": {
+            "Description": "Name of the secret in Secrets manager",
+            "Default": "panwfw",
             "Type": "String"
         },
-        "endpointurl":{
+        "endpointUrl": {
             "Description": "URL for the secrets manager",
             "Default": "https://secretsmanager.eu-west-1.amazonaws.com",
             "Type": "String"
+        },
+        "trustedSecurityGroup": {
+            "Default": "",
+            "Type": "List<AWS::EC2::SecurityGroup::Id>"
+        },
+        "mgmtAz1": {
+            "Description": "Mgt Subnet Az1",
+            "Type": "List<AWS::EC2::Subnet::Id>"
+        },
+        "mgmtAz2": {
+            "Description": "Mgt Subnet Az1",
+            "Type": "List<AWS::EC2::Subnet::Id>"
         }
     },
     "Resources": {
@@ -51,7 +63,7 @@
                     }]]
                 },
                 "Description": "Allocate VPN resources from API",
-                "Handler": "apiCreateTransit.lambda_handler",
+                "Handler": "apiCreateTransitVpn.lambda_handler",
                 "Role": {
                     "Ref": "LambdaExecutionRole"
                 },
@@ -69,16 +81,27 @@
                         "Region": {
                             "Ref": "AWS::Region"
                         },
-                        "secretName":{
+                        "secretName": {
                             "Ref": "secretName"
                         },
-                        "endpointUrl":{
-                            "Ref":"endpointUrl"
+                        "endpointUrl": {
+                            "Ref": "endpointUrl"
                         }
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300"
+                "Timeout": "300",
+                "VpcConfig": {
+                    "SecurityGroupIds": [{
+                        "Ref": "trustedSecurityGroup"
+                    }],
+                    "SubnetIds": [{
+                        "Ref": "mgmtAz1"
+                    }, {
+                        "Ref": "mgmtAz2"
+                    }]
+                }
+
             }
         },
         "apiCreateTransitVpnPermission": {
@@ -154,7 +177,17 @@
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300"
+                "Timeout": "300",
+                "VpcConfig": {
+                    "SecurityGroupIds": [{
+                        "Ref": "trustedSecurityGroup"
+                    }],
+                    "SubnetIds": [{
+                        "Ref": "mgmtAz1"
+                    }, {
+                        "Ref": "mgmtAz2"
+                    }]
+                }
             }
         },
         "apiDeleteTransitVpnLambda": {
@@ -192,16 +225,26 @@
                         "Region": {
                             "Ref": "AWS::Region"
                         },
-                        "secretName":{
+                        "secretName": {
                             "Ref": "secretName"
                         },
-                        "endpointUrl":{
-                            "Ref":"endpointUrl"
+                        "endpointUrl": {
+                            "Ref": "endpointUrl"
                         }
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300"
+                "Timeout": "300",
+                "VpcConfig": {
+                    "SecurityGroupIds": [{
+                        "Ref": "trustedSecurityGroup"
+                    }],
+                    "SubnetIds": [{
+                        "Ref": "mgmtAz1"
+                    }, {
+                        "Ref": "mgmtAz2"
+                    }]
+                }
             }
         },
         "TransitVpcWebApi": {

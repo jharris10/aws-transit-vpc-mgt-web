@@ -20,6 +20,18 @@
         "SubscriberLocalDb": {
             "Default": "SubscriberLocalDb-xxxx",
             "Type": "String"
+        },
+        "trustedSecurityGroup": {
+            "Default": "",
+            "Type": "List<AWS::EC2::SecurityGroup::Id>"
+        },
+        "mgmtAz1": {
+            "Description": "Mgt Subnet Az1",
+            "Type": "List<AWS::EC2::Subnet::Id>"
+        },
+        "mgmtAz2": {
+            "Description": "Mgt Subnet Az1",
+            "Type": "List<AWS::EC2::Subnet::Id>"
         }
     },
     "Resources": {
@@ -60,7 +72,17 @@
                 },
 
                 "Runtime": "python3.6",
-                "Timeout": "60"
+                "Timeout": "60",
+                "VpcConfig": {
+                    "SecurityGroupIds": [{
+                        "Ref": "trustedSecurityGroup"
+                    }],
+                    "SubnetIds": [{
+                        "Ref": "mgmtAz1"
+                    }, {
+                        "Ref": "mgmtAz2"
+                    }]
+                }
             }
         },
 
@@ -134,7 +156,17 @@
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300"
+                "Timeout": "300",
+                "VpcConfig": {
+                    "SecurityGroupIds": [{
+                        "Ref": "trustedSecurityGroup"
+                    }],
+                    "SubnetIds": [{
+                        "Ref": "mgmtAz1"
+                    }, {
+                        "Ref": "mgmtAz2"
+                    }]
+                }
             }
         },
         "apiDeleteSubsVpnLambdaPermission": {
@@ -191,7 +223,17 @@
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300"
+                "Timeout": "300",
+                "VpcConfig": {
+                    "SecurityGroupIds": [{
+                        "Ref": "trustedSecurityGroup"
+                    }],
+                    "SubnetIds": [{
+                        "Ref": "mgmtAz1"
+                    }, {
+                        "Ref": "mgmtAz2"
+                    }]
+                }
             }
         },
         "apiAsyncCreateLambdaPermission": {
