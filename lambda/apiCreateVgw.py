@@ -31,7 +31,7 @@ Output:
 }
 '''
 
-#subscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
+TransitAssumeRoleArn = os.environ['TransitAssumeRoleArn']
 transitConfigTable = os.environ['transitConfigTable']
 region = os.environ['Region']
 #
@@ -50,14 +50,20 @@ def publishToSns(snsTopicArn, message, roleArn=None):
     """Publish message to SNS Topic
     """
     try:
+        
         snsConnection = boto3.client('sns', region_name=snsTopicArn.split(':')[3])
+        logger.info("Got snsConnection, {}".format(snsConnection))
         if roleArn:
             stsConnection = boto3.client('sts')
+            logger.info("Got stsConnection, {}".format(stsConnection))
+            logger.info("Role Arn is , {}".format(roleArn))
             assumedrole = stsConnection.assume_role(RoleArn=roleArn, RoleSessionName="Sample")
+            logger.info("Got assumedrole,{}".format(assumedrole))
             snsConn = boto3.client('sns', region_name=snsTopicArn.split(':')[3],
                                    aws_access_key_id=assumedrole['Credentials']['AccessKeyId'],
                                    aws_secret_access_key=assumedrole['Credentials']['SecretAccessKey'],
                                    aws_session_token=assumedrole['Credentials']['SessionToken'])
+            logger.info("Got snsConn,{}".format(snsConn))                       
             snsConn.publish(TopicArn=snsTopicArn, Message=json.dumps(message))
             return True
         snsConnection.publish(TopicArn=snsTopicArn, Message=json.dumps(message))
@@ -395,7 +401,7 @@ def updateVgwAsnTable(id, data, tableConn):
 
 def updateVpcTable(tableName, data, paGroupName):
     logger.info('Called updateVpcTable with {} {} {}'.format(tableName, data, paGroupName))
-    """Updates the Transit VpcTable with VpcId, VpcCidr, Region, SubscriberSnsArn, SubscriberAssumeRoleArn, PaGroupName and CurrentStatus of VPN connection
+    """Updates the Transit VpcTable with VpcId, VpcCidr, Region, SubscriberSnsArn, TransitAssumeRoleArn, PaGroupName and CurrentStatus of VPN connection
     """
     try:
         # VpcCidr is the primary key for VpcTable
@@ -404,8 +410,7 @@ def updateVpcTable(tableName, data, paGroupName):
             'VpcId': data['queryStringParameters']['VpcId'],
             'VpcCidr': data['queryStringParameters']['VpcCidr'],
             'Region': data['queryStringParameters']['Region'],
-            # 'SubscriberAssumeRoleArn': data['queryStringParameters']['SubscriberAssumeRoleArn'],
-            'SubscriberAssumeRoleArn': subscriberAssumeRoleArn,
+            'TransitAssumeRoleArn': TransitAssumeRoleArn,
             'PaGroupName': paGroupName,
             'CurrentStatus': 'Inprogress'
         }
@@ -513,12 +518,15 @@ def lambda_handler(event, context):
 
     if event['queryStringParameters']['dryrun'] == 'Yes':  # Set True for 'Yes' False for "No'
         dryrun = True
-        apicreatevgwSnsArn = event['queryStringParameters']['apicreatevgwSnsArn']
+        
     try:
+        apicreatevgwSnsArn = event['queryStringParameters']['apicreatevgwSnsArn']
+        logger.info("Got apicreatevgwSnsArn: {}".format(apicreatevgwSnsArn))
         transitConfig = fetchFromTransitConfigTable(transitConfigTable)
         paloAltoGroupCapacity = transitConfig['PaGroupMaxVpc']
         if transitConfig:
             TransitAssumeRoleArn = os.environ['TransitAssumeRoleArn']
+            SubscriberAssumeRoleArn = event['queryStringParameters']['SubscriberAssumeRoleArn']
 
             # TransitTaskHandler data event
             transitTaskHandler = {'Action': 'TransitTaskHandler'}
@@ -583,7 +591,7 @@ def lambda_handler(event, context):
                                     "Region": 'Region',
                                 }
                                 logger.info('Created data object {}'.format(data10))
-                                publishToSns(apicreatevgwSnsArn, data10, subscriberAssumeRoleArn)
+                                publishToSns(apicreatevgwSnsArn, data10, SubscriberAssumeRoleArn)
                                 apioutput = response(data11, 200)
                                 logger.info(
                                     "Requesting VGW creation with parameters {}, hence proceeding  ".format(apioutput))

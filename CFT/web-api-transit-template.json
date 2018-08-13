@@ -5,26 +5,22 @@
 
         "LambdaBucketName": {
             "Description": "Bucket name for Lambda files",
-            "Default": "jrh-lambda",
+            "Default": "vw-transitvpc-test2-prerequisites",
             "Type": "String"
         },
         "LambdaExecutionRole": {
             "Description": "Transit Account Lambda Execution Role ARN",
-            "Default": "arn:aws:iam::1068:role/TransitLambdaExecutionRole-",
+            "Default": "arn:aws:iam::304191265855:role/TransitLambdaExecutionRole-vw-transitvpc-test4",
             "Type": "String"
         },
-        "SubscriberAssumeRoleArn": {
-            "Description": "Role used to submit to subscriber SNS topic",
-            "Default": "arn:aws:iam::1068089:role/TransitAssumeRole-",
-            "Type": "String"
-        },
-        "paloAltoGroupCapacity": {
-            "Default": "4",
+        "TransitAssumeRoleArn": {
+            "Description": "Role used for access to S3 bucket",
+            "Default": "arn:aws:iam::304191265855:role/TransitAssumeRole-vw-transitvpc-test4",
             "Type": "String"
         },
         "transitConfigTable": {
             "Description": "DynamoDb table for transit configuration data",
-            "Default": "TransitConfig-",
+            "Default": "TransitConfig-vw-transitvpc-test4",
             "Type": "String"
         },
         "secretName": {
@@ -38,11 +34,12 @@
             "Type": "String"
         },
         "trustedSecurityGroup": {
+            "Description": "Select the Security Group for the lambda function",
             "Default": "",
             "Type": "List<AWS::EC2::SecurityGroup::Id>"
         },
         "mgmtAz1": {
-            "Description": "Mgt Subnet Az1",
+            "Description": "Select the Management subnets in the VPC",
             "Type": "List<AWS::EC2::Subnet::Id>"
         }
     },
@@ -155,14 +152,11 @@
                 },
                 "Environment": {
                     "Variables": {
-                        "paloAltoGroupCapacity": {
-                            "Ref": "paloAltoGroupCapacity"
-                        },
                         "transitConfigTable": {
                             "Ref": "transitConfigTable"
                         },
-                        "SubscriberAssumeRoleArn": {
-                            "Ref": "transitConfigTable"
+                        "TransitAssumeRoleArn": {
+                            "Ref": ""
                         },
                         "Region": {
                             "Ref": "AWS::Region"
@@ -242,9 +236,6 @@
                 },
                 "Environment": {
                     "Variables": {
-                        "paloAltoGroupCapacity": {
-                            "Ref": "paloAltoGroupCapacity"
-                        },
                         "transitConfigTable": {
                             "Ref": "transitConfigTable"
                         },

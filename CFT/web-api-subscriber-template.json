@@ -8,7 +8,7 @@
             "Default": "vw-transitvpc-test2-prerequisites",
             "Type": "String"
         },
-        "SubscriberAssumeRoleArn": {
+        "SubscriberLambdaExecutionRole": {
             "Description": "Subscriber Account Lambda Execution Role ARN",
             "Default": "arn:aws:iam::304191265855:role/SubscriberLambdaExecutionRole-subscriber-stack",
             "Type": "String"
@@ -58,7 +58,7 @@
                 "Description": "Get Available VPCIds",
                 "Handler": "getvpcs.lambda_handler",
                 "Role": {
-                    "Ref": "SubscriberAssumeRoleArn"
+                    "Ref": "SubscriberLambdaExecutionRole"
                 },
                 "Code": {
                     "S3Bucket": {
@@ -68,15 +68,7 @@
                 },
 
                 "Runtime": "python3.6",
-                "Timeout": "60",
-                "VpcConfig": {
-                    "SecurityGroupIds": {
-                        "Ref": "trustedSecurityGroup"
-                    },
-                    "SubnetIds": {
-                        "Ref": "mgmtAz1"
-                    }
-                }
+                "Timeout": "60"
             }
         },
 
@@ -129,7 +121,7 @@
                 "Description": "Allocate VPN resources from API",
                 "Handler": "apiDeleteSubsVpn.lambda_handler",
                 "Role": {
-                    "Ref": "SubscriberAssumeRoleArn"
+                    "Ref": "SubscriberLambdaExecutionRole"
                 },
                 "Code": {
                     "S3Bucket": {
@@ -194,7 +186,7 @@
                 "Description": "Allocate VPN resources from API",
                 "Handler": "apiAsyncCreateVGW.lambda_handler",
                 "Role": {
-                    "Ref": "SubscriberAssumeRoleArn"
+                    "Ref": "SubscriberLambdaExecutionRole"
                 },
                 "Code": {
                     "S3Bucket": {
@@ -208,7 +200,6 @@
                         "subscriberConfigTable": {
                             "Ref": "subscriberConfigTable"
                         },
-
                         "Region": {
                             "Ref": "AWS::Region"
                         }
@@ -268,7 +259,7 @@
                 "Description": "Allocate VPN resources from API",
                 "Handler": "checkvgwstatus.lambda_handler",
                 "Role": {
-                    "Ref": "SubscriberAssumeRoleArn"
+                    "Ref": "SubscriberLambdaExecutionRole"
                 },
                 "Code": {
                     "S3Bucket": {
@@ -284,7 +275,15 @@
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300"
+                "Timeout": "300",
+                "VpcConfig": {
+                    "SecurityGroupIds": {
+                        "Ref": "trustedSecurityGroup"
+                    },
+                    "SubnetIds": {
+                        "Ref": "mgmtAz1"
+                    }
+                }
             }
         },
         "SubsVpcWebApi": {

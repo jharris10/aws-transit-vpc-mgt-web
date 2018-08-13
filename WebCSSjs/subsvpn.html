@@ -165,10 +165,12 @@
     <script type="text/javascript">
         var transitparams = '';
         var pollinterval;
-        //var TransitUrlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
-        var TransitUrlbase = 'https://j1pb8df38c.execute-api.eu-west-1.amazonaws.com/Production'
-        var SubscribingUrlBase = 'https://4doi31iwwb.execute-api.eu-west-1.amazonaws.com/Production'
-        var LambdaSnsTopic = 'arn:aws:sns:eu-west-1:304191265855:subscriber-web-api-apiAsyncCreateLambdaTopic-1PZ6JAE20R7QK'
+        //var TransitUrlBase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
+        var TransitUrlBase = 'https://j1pb8df38c.execute-api.eu-west-1.amazonaws.com/Production';
+        var SubscribingUrlBase = 'https://4doi31iwwb.execute-api.eu-west-1.amazonaws.com/Production';
+        var LambdaSnsTopic = 'arn:aws:sns:eu-west-1:304191265855:subscriber-web-api-apiAsyncCreateLambdaTopic-1PZ6JAE20R7QK';
+        var SubscriberAssumeRoleArn = 'arn:aws:iam::304191265855:role/SubscriberAssumeRole-subscriber-stack';
+        
 
         $(document).ready(function () {
 
@@ -257,9 +259,9 @@
             $("#subsbutton").click(function (event) {
                 event.preventDefault();
                 var formdata = $("form").serialize();
-                formdata = formdata+ '&apicreatevgwSnsArn=' + LambdaSnsTopic + '&VpcId=' + $("#VpcId option:selected").val();
+                formdata = formdata+ '&apicreatevgwSnsArn=' + LambdaSnsTopic + '&SubscriberAssumeRoleArn=' + SubscriberAssumeRoleArn + '&VpcId=' + $("#VpcId option:selected").val();
                 //console.log(formdata);
-                subscriberurl = TransitUrlbase + '/fetchtransvpn';
+                subscriberurl = TransitUrlBase + '/fetchtransvpn';
                 $.ajax({
                     type: 'GET',
                     dataType: 'json',
@@ -322,7 +324,7 @@
 
         $("#transitsubmit").click(function (event) {
             event.preventDefault();
-            transiturl = TransitUrlBase + '?' + '&messagefileName=testfilemessage.json';
+            transiturl = TransitUrlBase + '/createtransvpn?' + '&messagefileName=testfilemessage.json';
             $.ajax({
                 type: 'GET',
                 dataType: 'json',
