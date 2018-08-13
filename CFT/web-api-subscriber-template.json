@@ -26,11 +26,7 @@
             "Type": "List<AWS::EC2::SecurityGroup::Id>"
         },
         "mgmtAz1": {
-            "Description": "Mgt Subnet Az1",
-            "Type": "List<AWS::EC2::Subnet::Id>"
-        },
-        "mgmtAz2": {
-            "Description": "Mgt Subnet Az1",
+            "Description": "Mgt Subnet for the lambda function to execute in Azx",
             "Type": "List<AWS::EC2::Subnet::Id>"
         }
     },
@@ -74,14 +70,12 @@
                 "Runtime": "python3.6",
                 "Timeout": "60",
                 "VpcConfig": {
-                    "SecurityGroupIds": [{
+                    "SecurityGroupIds": {
                         "Ref": "trustedSecurityGroup"
-                    }],
-                    "SubnetIds": [{
+                    },
+                    "SubnetIds": {
                         "Ref": "mgmtAz1"
-                    }, {
-                        "Ref": "mgmtAz2"
-                    }]
+                    }
                 }
             }
         },
@@ -158,14 +152,12 @@
                 "Runtime": "python3.6",
                 "Timeout": "300",
                 "VpcConfig": {
-                    "SecurityGroupIds": [{
+                    "SecurityGroupIds": {
                         "Ref": "trustedSecurityGroup"
-                    }],
-                    "SubnetIds": [{
-                        "Ref": "mgmtAz1"
-                    }, {
-                        "Ref": "mgmtAz2"
-                    }]
+                    },
+                    "SubnetIds": {
+                        "Ref": "mgmtAz1"}
+                        
                 }
             }
         },
@@ -225,14 +217,12 @@
                 "Runtime": "python3.6",
                 "Timeout": "300",
                 "VpcConfig": {
-                    "SecurityGroupIds": [{
+                    "SecurityGroupIds": {
                         "Ref": "trustedSecurityGroup"
-                    }],
-                    "SubnetIds": [{
+                    },
+                    "SubnetIds": {
                         "Ref": "mgmtAz1"
-                    }, {
-                        "Ref": "mgmtAz2"
-                    }]
+                    }
                 }
             }
         },
