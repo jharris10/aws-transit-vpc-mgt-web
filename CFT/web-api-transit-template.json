@@ -10,12 +10,12 @@
         },
         "LambdaExecutionRole": {
             "Description": "Transit Account Lambda Execution Role ARN",
-            "Default": "arn:aws:iam::106808901653:role/TransitLambdaExecutionRole-new-transit-account",
+            "Default": "arn:aws:iam::1068089xxxx:role/TransitLambdaExecutionRole-",
             "Type": "String"
         },
         "SubscriberAssumeRoleArn": {
             "Description": "Role used to submit to subscriber SNS topic",
-            "Default": "arn:aws:iam::106808901653:role/TransitAssumeRole-new-transit-account",
+            "Default": "arn:aws:iam::10680890xxxx:role/TransitAssumeRole-",
             "Type": "String"
         },
         "paloAltoGroupCapacity": {
@@ -24,12 +24,12 @@
         },
         "transitConfigTable": {
             "Description": "DynamoDb table for transit configuration data",
-            "Default": "TransitConfig-new-transit-account",
+            "Default": "TransitConfig-",
             "Type": "String"
         },
         "secretName": {
             "Description": "Name of the secret in Secrets manager",
-            "Default": "panwfw",
+            "Default": "panxxx  secret is stored in {'username':'' ,'password':''} format",
             "Type": "String"
         },
         "endpointUrl": {
