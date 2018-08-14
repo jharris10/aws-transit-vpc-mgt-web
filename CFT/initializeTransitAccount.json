@@ -881,6 +881,11 @@
                             "Sid": "IAMActions"
                         },
                         {
+                            "Action": ["secretsmanager:*"],
+                            "Resource": ["*" ],
+                            "Effect": "Allow"
+                        },
+                        {
                              "Action": ["cloudformation:*"],
                              "Resource": ["*"],
                              "Effect": "Allow",
