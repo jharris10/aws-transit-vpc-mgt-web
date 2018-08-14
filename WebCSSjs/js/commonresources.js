@@ -1,6 +1,6 @@
         // Global variable declarations used by create and delete functions
         
-        var TransitUrlBase = 'https://9txqzb44ml.execute-api.eu-west-1.amazonaws.com/Production';
-        var SubscribingUrlBase = 'https://o5iunvk6m1.execute-api.eu-west-1.amazonaws.com/Production';
-        var LambdaSnsTopic = 'arn:aws:sns:eu-west-1:304191265855:subscriber-web-api-v3-apiAsyncCreateLambdaTopic-1KO6VLAS52J1H';
-        var SubscriberAssumeRoleArn = 'arn:aws:iam::304191265855:role/SubscriberAssumeRole-subscriber-stack';
+        const TransitUrlBase = 'https://z1137xsxxx.execute-api.eu-west-1.amazonaws.com/Production';
+        var SubscribingUrlBase = 'https://3r2pbejxxx.execute-api.eu-west-1.amazonaws.com/Production';
+        var LambdaSnsTopic = 'arn:aws:sns:eu-west-1:10680890xxxx:subscriber-web-api-apiAsyncCreateLambdaTopic-1X7EG4GLF5DEK';
+        var SubscriberAssumeRoleArn = 'arn:aws:iam::10680890xxxx:role/SubscriberAssumeRole-new-subscriber-account';

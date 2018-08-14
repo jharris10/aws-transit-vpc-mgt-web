@@ -5,27 +5,27 @@
 
         "LambdaBucketName": {
             "Description": "Bucket name for Lambda files",
-            "Default": "vw-transitvpc-test2-prerequisites",
+            "Default": "jrh-lambda",
             "Type": "String"
         },
         "LambdaExecutionRole": {
             "Description": "Transit Account Lambda Execution Role ARN",
-            "Default": "arn:aws:iam::304191265855:role/TransitLambdaExecutionRole-vw-transitvpc-test4",
+            "Default": "arn:aws:iam::10680890xxxx:role/TransitLambdaExecutionRole-xxxx",
             "Type": "String"
         },
         "TransitAssumeRoleArn": {
             "Description": "Role used for access to S3 bucket",
-            "Default": "arn:aws:iam::304191265855:role/TransitAssumeRole-vw-transitvpc-test4",
+            "Default": "arn:aws:iam::10680890xxxx:role/TransitAssumeRole-xxxx",
             "Type": "String"
         },
         "transitConfigTable": {
             "Description": "DynamoDb table for transit configuration data",
-            "Default": "TransitConfig-vw-transitvpc-test4",
+            "Default": "TransitConfig-xxxx",
             "Type": "String"
         },
         "secretName": {
             "Description": "Name of the secret is stored in {'username':'' ,'password':''} format",
-            "Default": "panfw",
+            "Default": "xxxx",
             "Type": "String"
         },
         "endpointUrl": {
@@ -156,7 +156,7 @@
                             "Ref": "transitConfigTable"
                         },
                         "TransitAssumeRoleArn": {
-                            "Ref": ""
+                            "Ref": "TransitAssumeRoleArn"
                         },
                         "Region": {
                             "Ref": "AWS::Region"
@@ -164,7 +164,7 @@
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300",
+                "Timeout": "28",
                 "VpcConfig": {
                     "SecurityGroupIds": {
                         "Ref": "trustedSecurityGroup"
@@ -251,14 +251,15 @@
                     }
                 },
                 "Runtime": "python3.6",
-                "Timeout": "300",
+                "Timeout": "28",
                 "VpcConfig": {
                     "SecurityGroupIds": {
                         "Ref": "trustedSecurityGroup"
                     },
                     "SubnetIds": {
-                        "Ref": "mgmtAz1"}
-                        
+                        "Ref": "mgmtAz1"
+                    }
+
                 }
             }
         },
@@ -582,7 +583,10 @@
         "ApiDeployment": {
             "Type": "AWS::ApiGateway::Deployment",
             "DependsOn": [
-                "TransitVpcWebApi", "deletetransvpnresourceGetMethod", "createtransvpnGetMethod", "deletetransvpnresourceGetMethod"
+                "TransitVpcWebApi",
+                "createtransvpnOptionsMethod","createtransvpnGetMethod",
+                "CreateVgwGetMethod","CreateVgwOptionsMethod",
+                "deletetransvpnresourceGetMethod","deletetransvpnresourceOptionsMethod"
             ],
             "Properties": {
                 "RestApiId": {
@@ -603,5 +607,11 @@
             }
         }
     },
-    "Outputs": {}
+    "Outputs": {
+        "TransitUrl": {
+            "Description": "Root URL of the Transit API gateway",
+            "Value": {"Fn::Join": ["", ["https://", {"Ref": "TransitVpcWebApi"}, ".execute-api.", {"Ref": "AWS::Region"}, ".amazonaws.com/Production"]]}
+          }
+          
+    }
 }

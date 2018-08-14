@@ -46,12 +46,12 @@ def deleteItemFromVpcTable(tableName, vpcId):
         logger.error("Error from deleteItemFromVpcTable, Error: {}".format(str(e)))
 
 
-def updateVgwAsn(tableName, vgwAsn):
+def updateVgwAsn(tableName, VpcId):
     """Updates Transit VgwAsn table attribute "InUse=NO"
     """
     try:
         dynamodb = boto3.resource('dynamodb', region_name=region)
-        logger.info("VgwAsn TableName: {}, and typeofVgwAsn: {}".format(tableName, type(vgwAsn)))
+        logger.info("VgwAsn TableName: {}, and typeofVpcId: {}".format(tableName, type(VpcId)))
         table = dynamodb.Table(tableName)
         # response = table.query(KeyConditionExpression=Key('VgwAsn').eq(str(vgwAsn)))['Items']
         #
@@ -61,10 +61,10 @@ def updateVgwAsn(tableName, vgwAsn):
         #
         if response:
             entry = response[0]
-            VgwAsn = entry['VgwAsn']
-            item = {'VgwAsn': str(vgwAsn), 'InUse': 'NO'}
+            scanvgwAsn = entry['VgwAsn']
+            item = {'VgwAsn': str(scanvgwAsn), 'InUse': 'NO'}
             table.put_item(Item=item)
-            logger.info("Successfully updated VgwAsn: {}, InUse=NO".format(vgwAsn))
+            logger.info("Successfully updated VgwAsn: {}, InUse=NO".format(scanvgwAsn))
     except Exception as e:
         logger.error("Error from updateVgwAsn(), Error: {}".format(str(e)))
         # If the VGW was created by customer manually, we dont have that VgwAsn enrty in Transit VgwAsn table, hence we are throwing the error and proccedind

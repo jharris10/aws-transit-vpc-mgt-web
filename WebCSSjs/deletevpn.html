@@ -30,7 +30,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="./subsvpndev.html">VPN Creation</a>
+                    <a class="nav-link" href="./subsvpn.html">VPN Creation</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="./deletevpn.html">VPN Deletion</a>
@@ -75,11 +75,13 @@
                 <h3>The VPC VPN Tunnel to the Firewalls will be deleted</h3>
                 <form id="myform">
                     <div class="form-group">
+                    <!-- Form fields required by lambda functions -->
                         <label for="Region">AWS Region</label>
                         <input type="text" class="form-control" id="Region" name="Region" value="eu-west-1">
                         <small id="Region" class="form-text text-muted">Enter the Region that constains the VPC</small>
                     </div>
                     <div class="form-group">
+                        <!-- Need to add helper function to populate ASN from VpcId-->
                         <label for="VgwAsn">VgwAsn</label>
                         <input type="text" class="form-control" id="VgwAsn" name="VgwAsn" value="6xxxx">
                         <small id="Region" class="form-text text-muted">VPC VGW ASN Number</small>
@@ -94,6 +96,7 @@
                             <option>5</option>
                         </select>
                     </div>
+                    <!-- "subsbutton.click event triggers AJAX call to delete Subscriber VPN-->
                     <button id="subsbutton" class="btn btn-primary" style="display: block;">Delete Subscriber VPN</button>
                     <div>
                     </div>
@@ -101,6 +104,10 @@
                 </form>
             </div>
             <div class="col-md-4">
+                <!-- 
+                    "subscriberTxtSuccess" is a placeholder for http 200 response from lambda
+                    visible and "transitsubmit" button enabled after 200 response from lambda
+                -->
                 <h3 class="subscriberVpcOutput" style="display:none;">Step 2 - Subscribing VPC Connection</h3>
                 <div id="SubsOutputTxtSuccess" name="SubscriberOutput" style="display:none;">
                     <p>Successfully deleted the Transit Account VPN configuration</p>
@@ -111,6 +118,9 @@
                 </div>
             </div>
             <div class="col-md-4">
+                <!-- 
+                    "transitVpcOutput" is a placeholder for http 200 response from lambda
+                -->
                 <h3 class="transitVpcOutput" style="display:none;">Step 3 - Transit VPC Connection</h3>
                 <div id="TransitOutputTxtId" name="TransitOutput" style="visibility: hidden;">
                     <p>Result of VPN Configuration</p>
@@ -126,6 +136,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/json2html/1.2.0/json2html.min.js"></script>
+
+    <!--Get the transit and subscriber api URL from shared file -->
+    <script src="js/commonresources.js"></script>
+
     <script type="text/javascript">
         $(document).ready(function () {
 
@@ -152,9 +166,11 @@
                         alert('Got unknown error check Cloudwatch logs!');
                     }
                 },
-                url: "https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/getvpcs",
+                // Get the VPCid CidrBlock in the account
+                url: SubscribingUrlBase + '/getvpcs',
                 success: function (response) {
-                    vpcdata = JSON.parse(response.body);
+                    vpcdata = response;
+                    //vpcdata = JSON.parse(response.body);
                     $.each(vpcdata, function (key, entry) {
                         dropdown.append($('<option></option>').attr('value', entry.VpcId).text(
                             entry.VpcId));
@@ -173,15 +189,28 @@
                 }
             });
 
+            
+            // Populate 
+            $('#VpcId').change(function () {
+                selectedVpcId = $("#VpcId option:selected").val();
+                for (var i in vpcdata) {
+                    if (vpcdata[i].VpcId == selectedVpcId) {
+                        $('#VpcCidr').val(vpcdata[i].VpcCidr)
+                        // Add an element to the dictionary
+                        break; // If you want to break out of the loop once you've found a match
+                    }
+                }
+            });
 
+ 
 
             //
             //poll function
             //
             var transitparams = '';
             var pollinterval;
-            var transiturlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
-            var subsurlbase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
+            //var TransitUrlBase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
+            //var SubscribingUrlBase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/';
 
             //
             // poll function queries lambda function for vgw Status
@@ -201,7 +230,7 @@
                 //console.log(formdata);
                 transitparams = formdata;
                 subscriberurl =
-                    subsurlbase + 'deletesubsvpn';
+                    SubscribingUrlBase + '/deletesubsvpn';
                 $.ajax({
                     type: 'GET',
                     dataType: 'json',
@@ -235,7 +264,7 @@
 
             $("#transitsubmit").click(function (event) {
                 event.preventDefault();
-                transiturl = transiturlbase + 'deletetransvpn';
+                transiturl = TransitUrlBase + '/deletetransvpn';
                 $.ajax({
                     type: 'GET',
                     dataType: 'json',

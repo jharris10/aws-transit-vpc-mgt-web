@@ -30,7 +30,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="./subsvpndev.html">VPN Creation</a>
+                    <a class="nav-link" href="./subsvpn.html">VPN Creation</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="./deletevpn.html">VPN Deletion</a>
@@ -162,15 +162,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/json2html/1.2.0/json2html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/json2html/1.2.0/json2html.min.js"></script>
+
+    <!--Get the transit and subscriber api URL from shared file -->
+    <script src="js/commonresources.js"></script>
+
     <script type="text/javascript">
         var transitparams = '';
         var pollinterval;
-        //var TransitUrlBase = 'https://8n50iw32bg.execute-api.eu-west-1.amazonaws.com/Production/transitvpn';
-        var TransitUrlBase = 'https://j1pb8df38c.execute-api.eu-west-1.amazonaws.com/Production';
-        var SubscribingUrlBase = 'https://4doi31iwwb.execute-api.eu-west-1.amazonaws.com/Production';
-        var LambdaSnsTopic = 'arn:aws:sns:eu-west-1:304191265855:subscriber-web-api-apiAsyncCreateLambdaTopic-1PZ6JAE20R7QK';
-        var SubscriberAssumeRoleArn = 'arn:aws:iam::304191265855:role/SubscriberAssumeRole-subscriber-stack';
-        
 
         $(document).ready(function () {
 
@@ -259,7 +258,7 @@
             $("#subsbutton").click(function (event) {
                 event.preventDefault();
                 var formdata = $("form").serialize();
-                formdata = formdata+ '&apicreatevgwSnsArn=' + LambdaSnsTopic + '&SubscriberAssumeRoleArn=' + SubscriberAssumeRoleArn + '&VpcId=' + $("#VpcId option:selected").val();
+                formdata = formdata + '&apicreatevgwSnsArn=' + LambdaSnsTopic + '&SubscriberAssumeRoleArn=' + SubscriberAssumeRoleArn + '&VpcId=' + $("#VpcId option:selected").val();
                 //console.log(formdata);
                 subscriberurl = TransitUrlBase + '/fetchtransvpn';
                 $.ajax({
@@ -345,7 +344,8 @@
                     var keys = Object.keys(response);
                     var txt = ""
                     txt += "<table class=\"table\"><tbody>";
-                    for (j in response) {;
+                    for (j in response) {
+                        ;
                         //console.log(j);
                         //console.log(response[j]); 
 
