@@ -59,9 +59,11 @@ def updateVgwAsn(tableName, VpcId):
         response = table.scan(FilterExpression=Attr('VpcId').eq(VpcId))['Items']
         #    Response returns a list 
         #
+        logger.info("Got response: {} from table scan operaton with VpcId {} ".format(response, VpcId))
         if response:
             entry = response[0]
             scanvgwAsn = entry['VgwAsn']
+            logger.info("Got scanvgwAsn and response: {} {}".format(scanvgwAsn, type(entry)))
             item = {'VgwAsn': str(scanvgwAsn), 'InUse': 'NO'}
             table.put_item(Item=item)
             logger.info("Successfully updated VgwAsn: {}, InUse=NO".format(scanvgwAsn))
@@ -195,8 +197,8 @@ def lambda_handler(event, context):
                     updatePaGroupInfoTable(config['TransitPaGroupInfo'], vpcResult['PaGroupName'])
 
                     updateBgpTunnleIpPool(config['TransitBgpTunnelIpPool'], event['VpcId'])
-                    if 'VgwAsn' in event:
-                        updateVgwAsn(config['TransitVgwAsn'], event['VgwAsn'])
+                    if 'VpcId' in event:
+                        updateVgwAsn(config['TransitVgwAsn'], event['VpcId'])
                         logger.info('Deleted VgwAsn from table {}'.format(config['TransitVgwAsn']))
                     data1 = {
                         'Result': 'Success',
