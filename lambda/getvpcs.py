@@ -8,7 +8,8 @@ import sys
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
+LambdaSnsTopic = os.environ['LambdaSnsTopic']
+SubscriberAssumeRoleArn = os.environ['SubscriberAssumeRoleArn']
 
 def response(message, status_code):
     logger.info('Called function response with {} {}'.format(message, status_code))
@@ -25,10 +26,7 @@ def response(message, status_code):
 
 def lambda_handler(event, context):
     logger.info("Got event: {}".format(str(event)))
-    #VpcId = event['queryStringParameters']['VpcId']
-    #region = event['queryStringParameters']['Region']
-    #VpcId = event['VpcId']
-    #region = event['Region']
+
     region = "eu-west-1"
 
 
@@ -47,8 +45,14 @@ def lambda_handler(event, context):
         vpcdata['VpcId'] = VpcId
         vpcdata['VpcCidr'] = CidrBlock
         vpcinfo.append(vpcdata)
+    
+    returndata = {
+        "VpcData": vpcinfo,
+        "LambdaSnsTopic":LambdaSnsTopic,
+        "SubscriberAssumeRoleArn":SubscriberAssumeRoleArn
+    }
         
-    apioutput = response(vpcinfo, 200)
+    apioutput = response(returndata, 200)
     logger.info("Sending response={}, hence proceeding  ".format(apioutput))
     
     return apioutput

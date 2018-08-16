@@ -13,6 +13,10 @@
             "Default": "arn:aws:iam::106808901653:role/SubscriberLambdaExecutionRole-xxxx",
             "Type": "String"
         },
+        "SubscriberAssumeRoleArn" :{
+            "Default": "",
+            "Type": "String"
+        },
         "subscriberConfigTable": {
             "Default": "SubscriberConfig-xxxx",
             "Type": "String"
@@ -66,7 +70,17 @@
                     },
                     "S3Key": "ApiLambda.zip"
                 },
+                "Environment": {
+                    "Variables": {
 
+                        "sLambdaSnsTopic": {
+                            "Ref": "apiAsyncCreateLambdaTopic"
+                        },
+                        "SubscriberAssumeRoleArn": {
+                            "Ref": "SubscriberAssumeRoleArn"
+                        }
+                    }
+                },
                 "Runtime": "python3.6",
                 "Timeout": "60"
             }
