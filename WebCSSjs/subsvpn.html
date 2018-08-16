@@ -70,7 +70,7 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <h3>Step 1 - Enter VPC Details</h3>
                 <form id="myform">
                     <div class="form-group">
@@ -90,8 +90,20 @@
                     </div>
                     <div class="form-group">
                         <label for="VpcCidr">Network</label>
-                        <input type="text" class="form-control" id="VpcCidr" name="VpcCidr" placeholder="10.0.0.0/8">
+                        <input type="text" class="form-control" id="VpcCidr" name="VpcCidr" placeholder="10.0.0.0/8" readonly>
                         <small id="VpcCidr" class="form-text text-muted">Enter the VpcID Cidr Block of the VPC (Must be Unique).</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="SubscriberAssumeRoleArn">Role used for publishing to SNS topic </label>
+                        <input type="text" class="form-control" id="SubscriberAssumeRoleArn" name="SubscriberAssumeRoleArn" placeholder="arn:aws:iam::" readonly>
+                        <small id="SubscriberAssumeRoleArn" class="form-text text-muted">Suscriber Account Assume Role Arn</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="LambdaSnsTopic">SNS topic for VGW creation via API</label>
+                        <input type="text" class="form-control" id="LambdaSnsTopic" name="LambdaSnsTopic" placeholder="arn:aws::sns" readonly>
+                        <small id="LambdaSnsTopic" class="form-text text-muted">Suscriber Account SNS topic Arn</small>
                     </div>
 
                     <div class="form-group">
@@ -108,7 +120,7 @@
                 </form>
 
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <h3 class="subscriberVpcOutput" style="display:none;">Step 2 - Subscribing VPC Connection</h3>
                 <div id="SubsOutputTxtSuccess" name="SubscriberOutput" style="display:none;">
                     <p>Successfully requested the creation of the VGW in the VPC</p>
@@ -146,7 +158,7 @@
                     <button id="transitsubmit" class="btn btn-primary" style="display: none;">Submit</button>
                 </div>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <h3 class="transitVpcOutput" style="display:none;">Step 3 - Transit VPC Connection</h3>
                 <div id="TransitOutputTxtId" name="TransitOutput" style="visibility: hidden;">
                     <p>Result of VPN Configuration</p>
@@ -199,7 +211,14 @@
                 // Get the VPCid CidrBlock in the account
                 url: SubscribingUrlBase + '/getvpcs',
                 success: function (response) {
-                    vpcdata = response;
+                    
+                    if ("VpcData" in response){
+                        vpcdata = response.VpcData;
+                        $('#LambdaSnsTopic').val(response.LambdaSnsTopic);
+                        $('#SubscriberAssumeRoleArn').val(response.SubscriberAssumeRoleArn);
+                    }
+                    else (vpcdata=response)
+                    //vpcdata = response;
                     //vpcdata = JSON.parse(response.body);
                     $.each(vpcdata, function (key, entry) {
                         dropdown.append($('<option></option>').attr('value', entry.VpcId).text(
@@ -258,7 +277,7 @@
             $("#subsbutton").click(function (event) {
                 event.preventDefault();
                 var formdata = $("form").serialize();
-                formdata = formdata + '&apicreatevgwSnsArn=' + LambdaSnsTopic + '&SubscriberAssumeRoleArn=' + SubscriberAssumeRoleArn + '&VpcId=' + $("#VpcId option:selected").val();
+                formdata = formdata + '&VpcId=' + $("#VpcId option:selected").val();
                 //console.log(formdata);
                 subscriberurl = TransitUrlBase + '/fetchtransvpn';
                 $.ajax({
